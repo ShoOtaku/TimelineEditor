@@ -1,0 +1,26 @@
+appId: com.timeline-editor.app
+productName: Timeline Editor
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - data/**/*
+  - package.json
+  - "!node_modules/**"
+asar: true
+win:
+  target:
+    - dir
+  signAndEditExecutable: false
+  verifyUpdateCodeSignature: false
+  extraResources: []
+electronLanguages:
+  - zh-CN
+  - en
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+npmRebuild: false
+extraMetadata:
+  main: dist-electron/index.js

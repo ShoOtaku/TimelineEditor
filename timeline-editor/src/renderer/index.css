@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* ReactFlow overrides for dark theme */
+.react-flow__node {
+  font-size: 12px;
+}
+
+.react-flow__background {
+  background-color: #111827 !important;
+}
+
+.react-flow__controls button {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #d1d5db !important;
+  fill: #d1d5db !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: #374151 !important;
+}
+
+.react-flow__minimap {
+  background-color: #1f2937 !important;
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* Monaco editor container */
+.monaco-editor-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Form input styling */
+.field-input {
+  @apply w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 focus:border-blue-500 focus:outline-none transition-colors;
+}
+
+input[type="number"].field-input {
+  @apply appearance-none;
+}
+
+select.field-input {
+  @apply cursor-pointer;
+}
