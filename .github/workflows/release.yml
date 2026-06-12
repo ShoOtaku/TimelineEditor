@@ -31,6 +31,15 @@ jobs:
         working-directory: timeline-editor
         run: npm ci
 
+      - name: Set version
+        working-directory: timeline-editor
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = '${{ github.event.inputs.version }}'
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json -Encoding UTF8
+          Write-Host "Set package.json version to ${{ github.event.inputs.version }}"
+
       - name: Build & Package
         working-directory: timeline-editor
         run: npm run dist
