@@ -22,5 +22,6 @@ electronLanguages:
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
 npmRebuild: false
+publish: null
 extraMetadata:
   main: dist-electron/index.js

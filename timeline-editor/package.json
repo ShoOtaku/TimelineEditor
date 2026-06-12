@@ -18,6 +18,10 @@
   ],
   "author": "",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShoOtaku/TimelineEditor.git"
+  },
   "type": "commonjs",
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
