@@ -38,6 +38,7 @@ export function TargetSelectorEditor({
             <option value={2}>目标的目标</option>
             <option value={3}>鼠标指向</option>
             <option value={4}>按过滤条件</option>
+            <option value={5}>小队成员</option>
           </select>
         </div>
         <div className="flex-1">
@@ -51,12 +52,14 @@ export function TargetSelectorEditor({
         </div>
       </div>
 
-      <div>
-        <div className="text-[9px] text-gray-500 mb-0.5">队伍成员索引</div>
-        <input type="number" value={sel.PMIndex ?? 0}
-          onChange={e => update('PMIndex', parseInt(e.target.value) || 0)}
-          className="field-input w-20" />
-      </div>
+      {sel.Target === 5 && (
+        <div>
+          <div className="text-[9px] text-gray-500 mb-0.5">队伍成员索引</div>
+          <input type="number" value={sel.PMIndex ?? 0}
+            onChange={e => update('PMIndex', parseInt(e.target.value) || 0)}
+            className="field-input w-20" />
+        </div>
+      )}
 
       {/* 过滤条件 */}
       <div>

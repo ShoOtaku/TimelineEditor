@@ -161,6 +161,7 @@ export function SpellConfigEditor({
             <option value={2}>目标的目标</option>
             <option value={3}>鼠标指向</option>
             <option value={4}>按过滤条件</option>
+            <option value={5}>小队成员</option>
           </select>
           <label className="flex items-center gap-1 cursor-pointer">
             <input type="checkbox" checked={!!config.TargetSelector?.Enable}
@@ -174,6 +175,14 @@ export function SpellConfigEditor({
               className="rounded bg-gray-700 border-gray-600" />
             <span className="text-[10px] text-gray-400">需要可选中</span>
           </label>
+          {config.TargetSelector?.Target === 5 && (
+            <div className="mt-1">
+              <div className="text-[9px] text-gray-500 mb-0.5">队伍成员索引</div>
+              <input type="number" value={config.TargetSelector?.PMIndex ?? 0}
+                onChange={e => update('TargetSelector', { ...config.TargetSelector, PMIndex: parseInt(e.target.value) || 0 })}
+                className="field-input w-20" />
+            </div>
+          )}
         </div>
       </details>
     </div>

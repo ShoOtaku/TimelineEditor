@@ -181,7 +181,7 @@ while True:
             continue
         if is_pvp:
             continue
-        if classjob_id < 0:
+        if classjob_id < 0 and classjob_id != -1:
             continue
 
         name = extract_val(row.get("f_0"))
