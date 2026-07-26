@@ -3,7 +3,8 @@ import { join } from 'path'
 import { readFile, writeFile, watch, stat, readdir, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import { readAllAcrDlls } from './dotnetMeta'
-import { checkForUpdates, downloadUpdate, installUpdate, getVersion } from './updater' // eslint-disable-line @typescript-eslint/no-unused-vars
+import { checkForUpdates, downloadUpdate, getVersion } from './updater'
+import { installUpdate, cleanupLeftoverFiles } from './installer'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -511,8 +512,9 @@ ipcMain.handle('updater:download', async (_event, zipUrl: string) => {
 ipcMain.handle('updater:install', async (_event, zipPath: string) => {
   try {
     await installUpdate(zipPath)
-    // Schedule quit AFTER returning the response so the IPC invoke completes cleanly
-    setTimeout(() => app.quit(), 100)
+    // Quit after the IPC response completes; the delay also gives the update
+    // launcher time to hand off to its job-free grandchild process
+    setTimeout(() => app.quit(), 500)
     return { success: true }
   } catch (err) {
     return { success: false, error: String(err) }
@@ -523,6 +525,10 @@ ipcMain.handle('updater:install', async (_event, zipPath: string) => {
 app.whenReady().then(async () => {
   await loadAeConfig()
   createWindow()
+
+  if (app.isPackaged) {
+    cleanupLeftoverFiles() // remove *.old left by a previous update
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
