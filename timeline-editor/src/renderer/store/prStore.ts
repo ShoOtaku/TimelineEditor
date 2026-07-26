@@ -1,85 +1,21 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { PtlDocument, PtlAnchor, PtlEntry, PtlNode, PtlMeta, PtlSyncRule } from '@shared/prTypes'
 import { isPtlDocument } from '@shared/prTypes'
-import { createEmptyPtlDocument, findNode } from '../pr/prModel'
+import { createEmptyPtlDocument } from '../pr/prModel'
 import {
   addAnchorToDoc, deleteAnchorFromDoc, duplicateAnchorInDoc,
-  addEntryToDoc, duplicateEntryInDoc,
-  addNodeToEntry, deleteNodeFromEntry, moveNodeInEntry, duplicateNodeInEntry
+  addEntryToDoc, duplicateEntryInDoc
 } from '../pr/prMutations'
+import type { PrStore, PrUndoEntry } from './prStoreTypes'
+import { pushUndo, getEntry } from './prStoreTypes'
+import { createNodeSlice } from './prNodeSlice'
 
-export type PrSelection =
-  | { kind: 'meta' }
-  | { kind: 'anchor'; guid: string }
-  | { kind: 'entry'; guid: string }
-  | { kind: 'node'; entryGuid: string; nodeId: number }
-
-interface PrUndoEntry {
-  doc: PtlDocument
-  selection: PrSelection | null
-}
-
-export type EditorMode = 'ae' | 'pr'
-
-export interface PrStore {
-  // Global editor mode (AE Triggerline vs PromeRotation timeline)
-  editorMode: EditorMode
-  setEditorMode: (mode: EditorMode) => void
-
-  filePath: string | null
-  fileName: string | null
-  doc: PtlDocument | null
-  isDirty: boolean
-  loadError: string | null
-  selection: PrSelection | null
-  expandedEntries: Record<string, boolean>
-
-  undoStack: PrUndoEntry[]
-  redoStack: PrUndoEntry[]
-
-  loadFile: (path: string) => Promise<boolean>
-  saveFile: (path: string) => Promise<void>
-  newDocument: (name: string) => void
-  select: (sel: PrSelection | null) => void
-  toggleExpanded: (entryGuid: string) => void
-
-  updateMeta: (changes: Partial<PtlMeta>) => void
-
-  addAnchor: () => void
-  updateAnchor: (guid: string, changes: Partial<PtlAnchor>) => void
-  updateSync: (guid: string, changes: Partial<PtlSyncRule> | null) => void
-  deleteAnchor: (guid: string) => void
-  duplicateAnchor: (guid: string) => void
-
-  addEntry: (anchorGuid: string) => void
-  updateEntry: (guid: string, changes: Partial<PtlEntry>) => void
-  deleteEntry: (guid: string) => void
-  duplicateEntry: (guid: string) => void
-
-  addEntryNode: (entryGuid: string, parentNodeId: number, type: string) => void
-  updateEntryNode: (entryGuid: string, nodeId: number, changes: Partial<PtlNode>) => void
-  deleteEntryNode: (entryGuid: string, nodeId: number) => void
-  moveEntryNode: (entryGuid: string, nodeId: number, dir: -1 | 1) => void
-  duplicateEntryNode: (entryGuid: string, nodeId: number) => void
-
-  undo: () => void
-  redo: () => void
-}
-
-function pushUndo(s: { doc: PtlDocument | null; undoStack: PrUndoEntry[]; redoStack: PrUndoEntry[]; selection: PrSelection | null }) {
-  if (!s.doc) return
-  s.undoStack.push({ doc: JSON.parse(JSON.stringify(s.doc)), selection: s.selection })
-  if (s.undoStack.length > 50) s.undoStack.shift()
-  s.redoStack = [] as PrUndoEntry[]
-}
-
-function getEntry(doc: PtlDocument, guid: string): PtlEntry | undefined {
-  return doc.Entries.find(e => e.Guid === guid)
-}
+export type { PrSelection, EditorMode, PrStore } from './prStoreTypes'
 
 export const usePrStore = create<PrStore>()(
   immer((set, get) => ({
+    ...createNodeSlice(set),
+
     editorMode: 'ae',
     setEditorMode: (mode) => set({ editorMode: mode }),
 
@@ -90,6 +26,7 @@ export const usePrStore = create<PrStore>()(
     loadError: null,
     selection: null,
     expandedEntries: {},
+    collapsedNodes: {},
     undoStack: [],
     redoStack: [],
 
@@ -113,6 +50,7 @@ export const usePrStore = create<PrStore>()(
           loadError: null,
           selection: { kind: 'meta' },
           expandedEntries: {},
+          collapsedNodes: {},
           undoStack: [],
           redoStack: []
         })
@@ -144,17 +82,34 @@ export const usePrStore = create<PrStore>()(
         loadError: null,
         selection: { kind: 'meta' },
         expandedEntries: {},
+        collapsedNodes: {},
         undoStack: [],
         redoStack: []
       })
     },
 
-    select: (sel) => set({ selection: sel }),
+    // Selecting an entry (or one of its nodes) reveals its node tree —
+    // node editing was undiscoverable while the tree stayed collapsed.
+    select: (sel) => {
+      set((s) => {
+        s.selection = sel
+        if (sel?.kind === 'entry') s.expandedEntries[sel.guid] = true
+        else if (sel?.kind === 'node') s.expandedEntries[sel.entryGuid] = true
+      })
+    },
 
     toggleExpanded: (entryGuid) => {
       set((s) => {
         s.expandedEntries[entryGuid] = !s.expandedEntries[entryGuid]
       })
+    },
+
+    setExpanded: (entryGuid, expanded) => {
+      set((s) => { s.expandedEntries[entryGuid] = expanded })
+    },
+
+    toggleNodeCollapsed: (key) => {
+      set((s) => { s.collapsedNodes[key] = !s.collapsedNodes[key] })
     },
 
     updateMeta: (changes) => {
@@ -275,70 +230,6 @@ export const usePrStore = create<PrStore>()(
         pushUndo(s)
         const clone = duplicateEntryInDoc(s.doc, guid)
         if (clone) s.selection = { kind: 'entry', guid: clone.Guid }
-        s.isDirty = true
-      })
-    },
-
-    addEntryNode: (entryGuid, parentNodeId, type) => {
-      set((s) => {
-        if (!s.doc) return
-        const entry = getEntry(s.doc, entryGuid)
-        if (!entry) return
-        pushUndo(s)
-        const node = addNodeToEntry(entry, parentNodeId, type)
-        if (node) {
-          s.selection = { kind: 'node', entryGuid, nodeId: node.Id }
-          s.expandedEntries[entryGuid] = true
-        }
-        s.isDirty = true
-      })
-    },
-
-    updateEntryNode: (entryGuid, nodeId, changes) => {
-      set((s) => {
-        if (!s.doc) return
-        const entry = getEntry(s.doc, entryGuid)
-        const node = entry ? findNode(entry.EntryGroup, nodeId) : null
-        if (!node) return
-        pushUndo(s)
-        Object.assign(node, changes)
-        s.isDirty = true
-      })
-    },
-
-    deleteEntryNode: (entryGuid, nodeId) => {
-      set((s) => {
-        if (!s.doc) return
-        const entry = getEntry(s.doc, entryGuid)
-        if (!entry) return
-        pushUndo(s)
-        if (deleteNodeFromEntry(entry, nodeId) &&
-            s.selection?.kind === 'node' && s.selection.entryGuid === entryGuid && s.selection.nodeId === nodeId) {
-          s.selection = { kind: 'entry', guid: entryGuid }
-        }
-        s.isDirty = true
-      })
-    },
-
-    moveEntryNode: (entryGuid, nodeId, dir) => {
-      set((s) => {
-        if (!s.doc) return
-        const entry = getEntry(s.doc, entryGuid)
-        if (!entry) return
-        pushUndo(s)
-        moveNodeInEntry(entry, nodeId, dir)
-        s.isDirty = true
-      })
-    },
-
-    duplicateEntryNode: (entryGuid, nodeId) => {
-      set((s) => {
-        if (!s.doc) return
-        const entry = getEntry(s.doc, entryGuid)
-        if (!entry) return
-        pushUndo(s)
-        const clone = duplicateNodeInEntry(entry, nodeId)
-        if (clone) s.selection = { kind: 'node', entryGuid, nodeId: clone.Id }
         s.isDirty = true
       })
     },

@@ -32,7 +32,7 @@ interface ElectronAPI {
   saveFileDialog(defaultName?: string): Promise<ElectronDialogResult>
   getDefaultDir(): Promise<string>
   getBackupDir(filePath: string): Promise<string>
-  loadSpellData(): Promise<{ success: boolean; data: Record<string, { n: string; t: number }>; error?: string }>
+  loadSpellData(): Promise<{ success: boolean; data: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number }>; error?: string }>
   getAeDirectory(): Promise<string>
   selectAeDirectory(): Promise<{ cancelled: boolean; directory?: string }>
   getAcrDir(): Promise<string>

@@ -59,6 +59,17 @@ export function addNodeToEntry(entry: PtlEntry, parentNodeId: number, type: stri
   return node
 }
 
+/** Insert a new node directly after `siblingId` under the same parent */
+export function addSiblingToEntry(entry: PtlEntry, siblingId: number, type: string): PtlNode | null {
+  const parent = findNodeParent(entry.EntryGroup, siblingId)
+  if (!parent?.Children) return null
+  const idx = parent.Children.findIndex(c => c.Id === siblingId)
+  if (idx < 0) return null
+  const node = createNode(type, nextNodeId(entry.EntryGroup))
+  parent.Children.splice(idx + 1, 0, node)
+  return node
+}
+
 export function deleteNodeFromEntry(entry: PtlEntry, nodeId: number): boolean {
   const parent = findNodeParent(entry.EntryGroup, nodeId)
   if (!parent?.Children) return false

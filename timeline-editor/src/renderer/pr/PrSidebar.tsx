@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePrStore } from '../store/prStore'
+import { askConfirm } from '../store/dialogStore'
 
 interface FileEntry {
   name: string
@@ -61,11 +62,19 @@ export function PrSidebar() {
   const handleClick = useCallback(async (entry: FileEntry) => {
     if (entry.isDirectory) {
       loadDirectory(entry.path)
-    } else {
-      if (isDirty && !window.confirm('当前时间轴有未保存的修改，切换文件将丢失，确定继续？')) return
-      const ok = await loadFile(entry.path)
-      if (ok) document.title = `Timeline Editor - ${entry.name}`
+      return
     }
+    if (isDirty) {
+      const ok = await askConfirm({
+        title: '放弃未保存的修改？',
+        message: `当前时间轴有未保存的修改，打开「${entry.name}」将丢失这些修改。`,
+        confirmLabel: '放弃并打开',
+        danger: true
+      })
+      if (!ok) return
+    }
+    const ok = await loadFile(entry.path)
+    if (ok) document.title = `Timeline Editor - ${entry.name}`
   }, [loadFile, loadDirectory, isDirty])
 
   const handleGoUp = useCallback(() => {

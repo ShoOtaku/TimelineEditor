@@ -35,6 +35,8 @@ import { StatusBar } from './components/StatusBar'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { useStore } from './store'
 import { usePrStore } from './store/prStore'
+import { askConfirm, askPrompt } from './store/dialogStore'
+import { DialogHost } from './components/DialogHost'
 import { PrSidebar } from './pr/PrSidebar'
 import { PrTimelineView } from './pr/PrTimelineView'
 import { PrPropertyPanel } from './pr/PrPropertyPanel'
@@ -120,11 +122,25 @@ export default function App() {
     }
   }, [isPr, fileName, saveFile, prFileName, prSaveFile])
 
-  const handleNewPr = useCallback(() => {
-    const name = window.prompt('新时间轴名称：', '新时间轴')
+  const handleNewPr = useCallback(async () => {
+    if (prIsDirty) {
+      const ok = await askConfirm({
+        title: '放弃未保存的修改？',
+        message: '当前 PR 时间轴有未保存的修改，新建将丢失这些修改。',
+        confirmLabel: '放弃并新建',
+        danger: true
+      })
+      if (!ok) return
+    }
+    const name = await askPrompt({
+      title: '新建 PR 时间轴',
+      message: '时间轴名称（写入 Meta.Name）',
+      defaultValue: '新时间轴',
+      placeholder: '如：绝伊甸 P1'
+    })
     if (name === null) return
-    prNewDocument(name.trim() || '新时间轴')
-  }, [prNewDocument])
+    prNewDocument(name)
+  }, [prIsDirty, prNewDocument])
 
   // Listen for custom events from keyboard shortcuts
   useEffect(() => {
@@ -252,6 +268,7 @@ export default function App() {
       </div>
       <StatusBar />
       <KeyboardShortcuts />
+      <DialogHost />
       {showUpdate && <UpdateDialog onClose={() => { setShowUpdate(false); setUpdateAvailable(false) }} />}
     </div>
     </ErrorBoundary>

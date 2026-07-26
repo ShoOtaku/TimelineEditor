@@ -3,6 +3,9 @@
 import type {
   PtlDocument, PtlAnchor, PtlEntry, PtlNode, PtlCondition, PtlAction, PtlSyncRule
 } from '@shared/prTypes'
+import { PR_NODE_TEMPLATE_LABELS } from '@shared/prTypes'
+import { findConditionSpec, findActionSpec } from '@shared/prSpecs'
+import { applySpecDefaults } from './prSpecEditor'
 
 export function newGuid(): string {
   return crypto.randomUUID()
@@ -46,10 +49,15 @@ export function createAnchor(time: number, name = '新锚点'): PtlAnchor {
   }
 }
 
+/**
+ * Node factory mirroring the plugin's EgNodeTemplates
+ * (PtlEditorWindow.EntryGroupEditor.cs) — a branch node ships with its
+ * true/false child slots because BranchNode picks Children[0] / Children[1].
+ */
 export function createNode(type: string, id: number): PtlNode {
   const base: PtlNode = {
     Id: id,
-    Name: null,
+    Name: PR_NODE_TEMPLATE_LABELS[type] ? `新${PR_NODE_TEMPLATE_LABELS[type]}` : type,
     Type: type,
     Enabled: true,
     Remark: null,
@@ -65,26 +73,31 @@ export function createNode(type: string, id: number): PtlNode {
   switch (type) {
     case 'serial':
     case 'parallel':
-      base.Name = type === 'serial' ? '顺序组' : '并行组'
       base.Children = []
       break
     case 'condition':
-      base.Name = '条件'
       base.Mode = 'wait'
       base.UseAndLogic = true
       base.Conditions = []
       break
     case 'action':
-      base.Name = '行为节点'
       base.Actions = []
       break
     case 'branch':
-      base.Name = '分支'
-      base.Children = []
+      base.UseAndLogic = true
+      base.Conditions = []
+      base.Children = [
+        { ...base, Id: id + 1, Name: '真分支', Type: 'serial', UseAndLogic: null, Conditions: null, Children: [] },
+        { ...base, Id: id + 2, Name: '假分支', Type: 'serial', UseAndLogic: null, Conditions: null, Children: [] }
+      ]
       break
     case 'delay':
       base.Name = '延迟'
       base.DelayMs = 1000
+      break
+    case 'csharprunningaction':
+      base.Duration = 0
+      base.Script = ''
       break
   }
   return base
@@ -104,22 +117,26 @@ export function createEntry(anchorGuid: string, name = '新行为组'): PtlEntry
   }
 }
 
+/** Blank ConditionDto with the spec's declared defaults applied */
 export function createCondition(type = 'SkillCooldown'): PtlCondition {
-  return {
+  const base: PtlCondition = {
     Type: type,
     ActionId: null,
     Immediate: false,
     Target: null,
     BuffId: null,
-    Mode: type === 'SkillCooldown' ? '<=' : null,
+    Mode: null,
     Regex: null,
-    Value: type === 'SkillCooldown' ? 0 : null,
+    Value: null,
     Negate: false
   }
+  const spec = findConditionSpec(type)
+  return spec ? applySpecDefaults(base, spec) : base
 }
 
-export function createAction(type = 'EnqueueSkill'): PtlAction {
-  const a: PtlAction = {
+/** Blank ActionDto with the spec's declared defaults applied */
+export function createAction(type = 'enqueueskill'): PtlAction {
+  const base: PtlAction = {
     Type: type,
     Qt: null,
     Enabled: false,
@@ -131,25 +148,8 @@ export function createAction(type = 'EnqueueSkill'): PtlAction {
     TargetMode: null,
     Mode: null
   }
-  if (type === 'EnqueueSkill' || type === 'ForceUseSkill') {
-    a.ActionId = 0
-    a.SkillType = 'OffGcd'
-    a.Target = 'Self'
-  } else if (type === 'BatchTriggerQt') {
-    a.QtStates = []
-  } else if (type === 'SetTarget') {
-    a.TargetMode = 'DataId'
-    a.TargetDataId = 0
-  } else if (type === 'UsePotion') {
-    a.Mode = 'Enqueue'
-  } else if (type === 'xszbox.pr.preset_skill') {
-    a.Params = { role: 'MT', preset: 'RaidMitigation', skillId: '0' }
-  } else if (type === 'xszbox.pr.role_skill') {
-    a.Params = { role: 'MT', skillId: '0', useTarget: 'True' }
-  } else if (type === 'xszbox.pr.role_position') {
-    a.Params = { role: '', mode: 'SetPos', durationMs: '5000', x: '0', y: '0', z: '0' }
-  }
-  return a
+  const spec = findActionSpec(type)
+  return spec ? applySpecDefaults(base, spec) : base
 }
 
 /** New minimal valid document: InCombat anchor at 0 + end anchor */

@@ -1,8 +1,8 @@
 // ============================================================
 // PromeRotation PureTimeline (PTL) Type Definitions
-// Schema source: PromeRotation.dll decompile
-//   PromeRotation.PureTimeline.Serialization.{PtlDto, PtlMetaDto, AnchorDto, SyncRuleDto, EntryDto}
-//   PromeRotation.Timeline.Core.{NodeDto, ConditionDto, ActionDto, QtStateDto}
+// Schema source: PromeRotation source repo (authoritative, not decompile)
+//   PureTimeline/Serialization/PtlDto.cs, PureTimeline/Model/*.cs
+//   Timeline/Core/TimelineDtos.cs, Timeline/Core/Nodes.cs
 // All interfaces carry a [key: string]: unknown catch-all for round-trip safety.
 // ============================================================
 
@@ -89,7 +89,7 @@ export interface PtlAction {
   [key: string]: unknown
 }
 
-/** Type: serial | parallel | condition | action | branch | delay */
+/** Type: serial | parallel | condition | action | branch | delay | csharprunningaction */
 export interface PtlNode {
   Id: number
   Name?: string | null
@@ -150,13 +150,13 @@ export function isPtlDocument(json: unknown): json is PtlDocument {
 }
 
 // ============================================================
-// Enums (from DLL)
+// Enums (from source)
 // ============================================================
 
-/** PromeRotation.PureTimeline.Model.SyncType */
+/** PureTimeline/Model/SyncRule.cs — SyncType */
 export const PR_SYNC_TYPES = [
-  'None', 'InCombat', 'CastStart', 'ActionEffect', 'Countdown', 'Weather',
-  'ChatLog', 'ActorControl', 'AddedCombatant', 'NpcYell', 'Lua', 'Manual'
+  'None', 'InCombat', 'CastStart', 'ActionEffect', 'Weather',
+  'ChatLog', 'Countdown', 'ActorControl', 'AddedCombatant', 'NpcYell', 'Lua', 'Manual'
 ] as const
 
 export const PR_SYNC_TYPE_LABELS: Record<string, string> = {
@@ -164,9 +164,9 @@ export const PR_SYNC_TYPE_LABELS: Record<string, string> = {
   InCombat: '进入战斗',
   CastStart: '读条开始',
   ActionEffect: '技能判定',
-  Countdown: '倒计时',
   Weather: '天气变化',
   ChatLog: '聊天日志',
+  Countdown: '倒计时',
   ActorControl: 'ActorControl',
   AddedCombatant: '添加战斗成员',
   NpcYell: 'NPC 喊话',
@@ -174,19 +174,33 @@ export const PR_SYNC_TYPE_LABELS: Record<string, string> = {
   Manual: '手动触发'
 }
 
-/** Sync types whose Params carry an ActionId / Regex (observed in real timelines) */
+/** Sync types whose Params carry ActionId / Regex */
 export const PR_SYNC_ACTION_TYPES = new Set(['CastStart', 'ActionEffect'])
 
-/** PromeRotation.Timeline.Core node type strings */
-export const PR_NODE_TYPES = ['serial', 'parallel', 'condition', 'action', 'branch', 'delay'] as const
+/** Node types accepted by TimelineLoader (lowercase-invariant match) */
+export const PR_NODE_TYPES = [
+  'serial', 'parallel', 'condition', 'action', 'branch', 'delay', 'csharprunningaction'
+] as const
 
 export const PR_NODE_TYPE_LABELS: Record<string, string> = {
-  serial: '顺序组',
-  parallel: '并行组',
+  serial: '串行',
+  parallel: '并行',
   condition: '条件',
-  action: '动作',
+  action: '行为',
   branch: '分支',
-  delay: '延迟'
+  delay: '延迟',
+  csharprunningaction: 'C# 持续行为'
+}
+
+/** Menu labels used when creating nodes (matches plugin EgNodeTemplates) */
+export const PR_NODE_TEMPLATE_LABELS: Record<string, string> = {
+  serial: '串行节点',
+  parallel: '并行节点',
+  condition: '条件节点',
+  action: '行为节点',
+  delay: '延迟节点',
+  branch: '分支节点',
+  csharprunningaction: 'C# 持续行为'
 }
 
 export const PR_NODE_TYPE_ICONS: Record<string, string> = {
@@ -195,71 +209,31 @@ export const PR_NODE_TYPE_ICONS: Record<string, string> = {
   condition: '❓',
   action: '▶️',
   branch: '🔀',
-  delay: '⏱️'
+  delay: '⏱️',
+  csharprunningaction: '📜'
 }
 
-/** PromeRotation.Timeline.Conditions.* (class name minus "Condition" suffix) */
-export const PR_CONDITION_TYPES = [
-  'SkillCooldown', 'TargetSelectable', 'HasBuffFriendly', 'BuffTimeFriendly',
-  'CastStart', 'ActionEffect', 'InCombat', 'Countdown', 'ChatLog',
-  'InstanceContentText', 'PlayerPosition', 'Weather', 'TimelineRole', 'TimelineVariable'
-] as const
-
-export const PR_CONDITION_TYPE_LABELS: Record<string, string> = {
-  SkillCooldown: '技能冷却',
-  TargetSelectable: '目标可选中',
-  HasBuffFriendly: '友方拥有Buff',
-  BuffTimeFriendly: '友方Buff剩余时间',
-  CastStart: '读条开始',
-  ActionEffect: '技能判定',
-  InCombat: '战斗状态',
-  Countdown: '倒计时',
-  ChatLog: '聊天日志',
-  InstanceContentText: '副本文本',
-  PlayerPosition: '玩家位置',
-  Weather: '天气',
-  TimelineRole: '时间轴职能',
-  TimelineVariable: '时间轴变量'
+/** Tailwind text color per node type (mirrors plugin GetEgNodeColor hues) */
+export const PR_NODE_TYPE_COLORS: Record<string, string> = {
+  serial: 'text-sky-300',
+  parallel: 'text-purple-300',
+  branch: 'text-amber-300',
+  condition: 'text-emerald-300',
+  action: 'text-orange-200',
+  delay: 'text-lime-300',
+  csharprunningaction: 'text-green-300'
 }
 
-/** PromeRotation.Timeline.Actions.* (class name minus "Action" suffix) + XSZBox IPC actions */
-export const PR_ACTION_TYPES = [
-  'EnqueueSkill', 'ForceUseSkill', 'TriggerQt', 'BatchTriggerQt', 'SetTarget',
-  'UsePotion', 'CustomLog', 'ExecuteCommand', 'ClearAllQueues',
-  'EnqueueLocation', 'ForceUseLocation', 'GreenMoveToPosition', 'TeleportToPosition',
-  'HeadingControl', 'SetTargetSelectorMode', 'SetTimelineVariable', 'ToggleAcr'
-] as const
-
-export const PR_XSZBOX_ACTION_TYPES = [
-  'xszbox.pr.preset_skill', 'xszbox.pr.role_skill', 'xszbox.pr.role_position'
-] as const
-
-export const PR_ACTION_TYPE_LABELS: Record<string, string> = {
-  EnqueueSkill: '排队使用技能',
-  ForceUseSkill: '强制使用技能',
-  TriggerQt: '设置QT',
-  BatchTriggerQt: '批量设置QT',
-  SetTarget: '设置目标',
-  UsePotion: '使用爆发药',
-  CustomLog: '自定义日志',
-  ExecuteCommand: '执行命令',
-  ClearAllQueues: '清空技能队列',
-  EnqueueLocation: '排队地面技能',
-  ForceUseLocation: '强制地面技能',
-  GreenMoveToPosition: '绿玩移动',
-  TeleportToPosition: '传送到坐标',
-  HeadingControl: '面向控制',
-  SetTargetSelectorMode: '设置目标选择器',
-  SetTimelineVariable: '设置时间轴变量',
-  ToggleAcr: '开关ACR',
-  'xszbox.pr.preset_skill': 'XSZBox·预设技能',
-  'xszbox.pr.role_skill': 'XSZBox·职能技能',
-  'xszbox.pr.role_position': 'XSZBox·职能移动'
+/** Condition node detection modes (Nodes.cs ConditionNode.Mode) */
+export const PR_COND_NODE_MODES = ['auto', 'immediate', 'wait'] as const
+export const PR_COND_NODE_MODE_LABELS: Record<string, string> = {
+  auto: '自动检测',
+  immediate: '立即检测',
+  wait: '持续检测'
 }
 
-/** PromeRotation.Data.ActionType (ActionDto.SkillType) */
+/** Data/PAction.cs — ActionType (ActionDto.SkillType) */
 export const PR_SKILL_TYPES = ['Gcd', 'OffGcd', 'Always', 'Item', 'LimitBreak'] as const
-
 export const PR_SKILL_TYPE_LABELS: Record<string, string> = {
   Gcd: 'GCD',
   OffGcd: '能力技 (OffGcd)',
@@ -268,13 +242,12 @@ export const PR_SKILL_TYPE_LABELS: Record<string, string> = {
   LimitBreak: '极限技 (LB)'
 }
 
-/** PromeRotation.Data.ActionTargetType (ActionDto.Target) */
+/** Data/ActionTargetType.cs (ActionDto.Target / ConditionDto.Target) */
 export const PR_TARGET_TYPES = [
   'Self', 'Target', 'TargetOfTarget', 'FocusTarget', 'MouseOver', 'LowestHealthPartyMember',
   'PartyMember2', 'PartyMember3', 'PartyMember4', 'PartyMember5',
   'PartyMember6', 'PartyMember7', 'PartyMember8'
 ] as const
-
 export const PR_TARGET_TYPE_LABELS: Record<string, string> = {
   Self: '自身',
   Target: '当前目标',
@@ -291,39 +264,79 @@ export const PR_TARGET_TYPE_LABELS: Record<string, string> = {
   PartyMember8: '小队成员8'
 }
 
-/** PromeRotation.Timeline.Actions.TargetSelectionType (SetTarget.TargetMode) */
+/** Timeline/Actions/SetTargetAction.cs — TargetSelectionType */
 export const PR_TARGET_MODES = ['None', 'Self', 'DataId'] as const
 export const PR_TARGET_MODE_LABELS: Record<string, string> = {
-  None: '无',
-  Self: '自身',
-  DataId: '按 DataId'
+  None: '无', Self: '自身', DataId: '按 DataId'
 }
 
-/** PromeRotation.Timeline.Actions.PotionUseMode (UsePotion.Mode) */
+/** Timeline/Actions/UsePotionAction.cs — PotionUseMode */
 export const PR_POTION_MODES = ['Enqueue', 'HighPriority', 'ForceUse'] as const
 export const PR_POTION_MODE_LABELS: Record<string, string> = {
-  Enqueue: '排队',
-  HighPriority: '高优先级',
-  ForceUse: '强制使用'
+  Enqueue: '排队', HighPriority: '高优先级', ForceUse: '强制使用'
 }
 
-/** PromeRotation.TargetSelector.SelectorModeType (SetTargetSelectorMode.Mode) */
+/** TargetSelector/SelectorModeType (SetTargetSelectorMode Params.mode) */
 export const PR_SELECTOR_MODES = [
   'None', 'Closest', 'Farthest', 'LowestHp', 'HighestHp',
   'LowestHpIn3R', 'HighestHpIn3R', 'LowestHpIn6R', 'HighestHpIn6R'
 ] as const
+export const PR_SELECTOR_MODE_LABELS: Record<string, string> = {
+  None: '无', Closest: '最近', Farthest: '最远',
+  LowestHp: '血量最低', HighestHp: '血量最高',
+  LowestHpIn3R: '3米内血量最低', HighestHpIn3R: '3米内血量最高',
+  LowestHpIn6R: '6米内血量最低', HighestHpIn6R: '6米内血量最高'
+}
 
-/** Comparison operators used by SkillCooldown etc. (ConditionDto.Mode) */
-export const PR_COMPARE_MODES = ['<=', '<', '==', '!=', '>', '>='] as const
+/** Timeline/Actions/HeadingControlAction.cs — HeadingControlMode */
+export const PR_HEADING_MODES = [
+  'SetAngle', 'ClearAll', 'FaceCurrentTarget', 'FaceSpecifiedTarget', 'FacePosition'
+] as const
+export const PR_HEADING_MODE_LABELS: Record<string, string> = {
+  SetAngle: '设定角度', ClearAll: '清除全部', FaceCurrentTarget: '面向当前目标',
+  FaceSpecifiedTarget: '面向指定目标', FacePosition: '面向坐标'
+}
 
-/** Timeline roles used by xszbox.pr.* params */
+/** Timeline/Actions/SetTimelineVariableAction.cs — TimelineVariableActionMode */
+export const PR_VAR_ACTION_MODES = ['Set', 'Add', 'Subtract'] as const
+export const PR_VAR_ACTION_MODE_LABELS: Record<string, string> = {
+  Set: '赋值', Add: '加', Subtract: '减'
+}
+
+/** Timeline/Actions/ToggleAcrAction.cs — ToggleAcrMode */
+export const PR_TOGGLE_ACR_MODES = ['Enable', 'Hold'] as const
+export const PR_TOGGLE_ACR_MODE_LABELS: Record<string, string> = {
+  Enable: '开启', Hold: '暂停 (Hold)'
+}
+
+/** Timeline/Conditions/ActionEffectCondition.cs — ActionEffectSourceMode / TargetMode */
+export const PR_EFFECT_SOURCE_MODES = ['Any', 'Player', 'Enemy'] as const
+export const PR_EFFECT_SOURCE_MODE_LABELS: Record<string, string> = {
+  Any: '任意', Player: '玩家', Enemy: '敌方'
+}
+export const PR_EFFECT_TARGET_MODES = ['Any', 'Self', 'NotSelf'] as const
+export const PR_EFFECT_TARGET_MODE_LABELS: Record<string, string> = {
+  Any: '任意', Self: '自身', NotSelf: '非自身'
+}
+
+/** Timeline/Conditions/PlayerPositionCondition.cs — PlayerPositionCheckMode */
+export const PR_POSITION_CHECK_MODES = ['XAxis', 'YAxis', 'ZAxis', 'CoordinateRange'] as const
+export const PR_POSITION_CHECK_MODE_LABELS: Record<string, string> = {
+  XAxis: 'X 轴', YAxis: 'Y 轴', ZAxis: 'Z 轴', CoordinateRange: '坐标范围'
+}
+
+/** Data/PromeSettings.cs — TimelineRole */
+export const PR_TIMELINE_ROLES = ['None', 'MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'] as const
+/** Roles usable as an XSZBox IPC target (no None) */
 export const PR_ROLES = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'] as const
+
+/** Comparison operators (NormalizeCompare accepts these) */
+export const PR_COMPARE_MODES = ['==', '!=', '>', '>=', '<', '<='] as const
 
 /** Known presets for xszbox.pr.preset_skill (observed in timelines) */
 export const PR_XSZBOX_PRESETS = [
   'RaidMitigation', 'Rampart', 'Reprisal', 'TankFortyMitigation', 'TankInvulnerability'
 ] as const
-
 export const PR_XSZBOX_PRESET_LABELS: Record<string, string> = {
   RaidMitigation: '团减',
   Rampart: '铁壁',

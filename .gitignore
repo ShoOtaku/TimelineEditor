@@ -33,3 +33,10 @@ npm-debug.log*
 
 # Misc
 nul
+
+# Python cache
+__pycache__/
+*.pyc
+
+# HelloAGENTS session state
+.helloagents/

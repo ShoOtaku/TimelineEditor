@@ -2,7 +2,7 @@ import type { PtlAnchor } from '@shared/prTypes'
 import { PR_SYNC_TYPES, PR_SYNC_TYPE_LABELS, PR_SYNC_ACTION_TYPES } from '@shared/prTypes'
 import { usePrStore } from '../store/prStore'
 import { formatPrTime } from './prModel'
-import { PrField, PrCheckbox, PrNullableNumber, SpellNameHint } from './prFields'
+import { PrField, PrCheckbox, PrNumberInput, PrParamsTextarea, SpellNameHint } from './prFields'
 
 /** Anchor properties + sync rule editor */
 export function PrAnchorEditor({ anchor }: { anchor: PtlAnchor }) {
@@ -26,11 +26,7 @@ export function PrAnchorEditor({ anchor }: { anchor: PtlAnchor }) {
       </PrField>
 
       <PrField label="时间 (秒)" hint={formatPrTime(anchor.Time)}>
-        <input
-          type="number" step={0.1} value={anchor.Time}
-          onChange={e => set({ Time: parseFloat(e.target.value) || 0 })}
-          className="field-input"
-        />
+        <PrNumberInput value={anchor.Time} onChange={v => set({ Time: v ?? 0 })} />
       </PrField>
 
       <div className="grid grid-cols-2 gap-2">
@@ -103,43 +99,32 @@ export function PrAnchorEditor({ anchor }: { anchor: PtlAnchor }) {
 
               {!PR_SYNC_ACTION_TYPES.has(sync.Type) && sync.Type !== 'InCombat' && (
                 <PrField label="同步参数 (Params)" hint="键=值，每行一条">
-                  <textarea
-                    value={Object.entries(sync.Params ?? {}).map(([k, v]) => `${k}=${v}`).join('\n')}
-                    onChange={e => {
-                      const params: Record<string, string> = {}
-                      for (const line of e.target.value.split('\n')) {
-                        const idx = line.indexOf('=')
-                        if (idx > 0) params[line.slice(0, idx).trim()] = line.slice(idx + 1).trim()
-                      }
-                      updateSync(anchor.Guid, { Params: params })
-                    }}
-                    className="field-input font-mono !text-[11px]"
+                  <PrParamsTextarea
+                    params={sync.Params}
                     rows={3}
-                    placeholder="Key=Value"
+                    onChange={p => updateSync(anchor.Guid, { Params: p ?? {} })}
                   />
                 </PrField>
               )}
 
               <div className="grid grid-cols-2 gap-2">
                 <PrField label="窗口·前 (秒)" hint="0=默认2.5/10">
-                  <input type="number" step={0.5} value={sync.WindowBefore}
-                    onChange={e => updateSync(anchor.Guid, { WindowBefore: parseFloat(e.target.value) || 0 })}
-                    className="field-input" />
+                  <PrNumberInput value={sync.WindowBefore}
+                    onChange={v => updateSync(anchor.Guid, { WindowBefore: v ?? 0 })} />
                 </PrField>
                 <PrField label="窗口·后 (秒)">
-                  <input type="number" step={0.5} value={sync.WindowAfter}
-                    onChange={e => updateSync(anchor.Guid, { WindowAfter: parseFloat(e.target.value) || 0 })}
-                    className="field-input" />
+                  <PrNumberInput value={sync.WindowAfter}
+                    onChange={v => updateSync(anchor.Guid, { WindowAfter: v ?? 0 })} />
                 </PrField>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <PrField label="匹配时间" hint="留空=锚点时间">
-                  <PrNullableNumber value={sync.MatchTime ?? null}
+                  <PrNumberInput value={sync.MatchTime ?? null}
                     onChange={v => updateSync(anchor.Guid, { MatchTime: v })} />
                 </PrField>
                 <PrField label="跳转目标时间" hint="留空=锚点时间">
-                  <PrNullableNumber value={sync.JumpTargetTime ?? null}
+                  <PrNumberInput value={sync.JumpTargetTime ?? null}
                     onChange={v => updateSync(anchor.Guid, { JumpTargetTime: v })} />
                 </PrField>
               </div>

@@ -3,6 +3,7 @@ import type { PtlAnchor, PtlEntry } from '@shared/prTypes'
 import { PR_SYNC_TYPE_LABELS } from '@shared/prTypes'
 import { usePrStore } from '../store/prStore'
 import { useStore } from '../store'
+import { askConfirm } from '../store/dialogStore'
 import { formatPrTime, sortedAnchors, entriesOfAnchor, validatePtlDocument } from './prModel'
 import { PrNodeTree } from './PrNodeTree'
 
@@ -190,10 +191,18 @@ export function PrTimelineView() {
                     ⧉
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation()
                       const n = entries.length
-                      if (n > 0 && !window.confirm(`删除锚点将同时删除其 ${n} 个行为组，确定？`)) return
+                      if (n > 0) {
+                        const ok = await askConfirm({
+                          title: '删除锚点',
+                          message: `锚点「${anchor.Name || '未命名'}」下挂有 ${n} 个行为组，删除锚点会连带删除它们。`,
+                          confirmLabel: '一并删除',
+                          danger: true
+                        })
+                        if (!ok) return
+                      }
                       deleteAnchor(anchor.Guid)
                     }}
                     className="px-1 text-[11px] text-red-500/70 hover:text-red-400" title="删除锚点"

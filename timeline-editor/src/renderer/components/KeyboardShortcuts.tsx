@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useStore } from '../store'
 import { usePrStore } from '../store/prStore'
+import { askConfirm } from '../store/dialogStore'
 
 export function KeyboardShortcuts() {
   const selectedNodeId = useStore(s => s.selectedNodeId)
@@ -78,9 +79,19 @@ export function KeyboardShortcuts() {
           if (!prSelection || !prDoc) return
           e.preventDefault()
           if (prSelection.kind === 'anchor') {
-            const n = prDoc.Entries.filter(en => en.StartAnchorGuid === prSelection.guid).length
-            if (n > 0 && !window.confirm(`删除锚点将同时删除其 ${n} 个行为组，确定？`)) return
-            prDeleteAnchor(prSelection.guid)
+            const guid = prSelection.guid
+            const anchor = prDoc.Anchors.find(a => a.Guid === guid)
+            const n = prDoc.Entries.filter(en => en.StartAnchorGuid === guid).length
+            if (n > 0) {
+              askConfirm({
+                title: '删除锚点',
+                message: `锚点「${anchor?.Name || '未命名'}」下挂有 ${n} 个行为组，删除锚点会连带删除它们。`,
+                confirmLabel: '一并删除',
+                danger: true
+              }).then(ok => { if (ok) prDeleteAnchor(guid) })
+              return
+            }
+            prDeleteAnchor(guid)
           } else if (prSelection.kind === 'entry') {
             prDeleteEntry(prSelection.guid)
           } else if (prSelection.kind === 'node') {
