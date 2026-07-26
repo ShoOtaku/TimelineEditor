@@ -6,6 +6,7 @@ import {
 } from '@shared/prTypes'
 import { conditionLabel, actionLabel } from '@shared/prSpecs'
 import { isCompositeNode } from './prModel'
+import type { DropPosition } from './prMutations'
 import { usePrStore } from '../store/prStore'
 
 export function nodeSummary(node: PtlNode): string {
@@ -62,8 +63,29 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
   const duplicateEntryNode = usePrStore(s => s.duplicateEntryNode)
   const updateEntryNode = usePrStore(s => s.updateEntryNode)
 
+  const moveEntryNodeTo = usePrStore(s => s.moveEntryNodeTo)
+
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [submenu, setSubmenu] = useState<'child' | 'sibling' | null>(null)
+  const [dragId, setDragId] = useState<number | null>(null)
+  const [dropHint, setDropHint] = useState<{ nodeId: number; position: DropPosition } | null>(null)
+
+  /**
+   * Vertical thirds of a row decide the drop position: top → before,
+   * bottom → after, middle → inside (composites only, else falls back to after).
+   */
+  const dropPositionFor = useCallback((e: React.DragEvent, node: PtlNode): DropPosition => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = (e.clientY - rect.top) / rect.height
+    if (isCompositeNode(node)) {
+      if (ratio < 0.28) return 'before'
+      if (ratio > 0.72) return 'after'
+      return 'inside'
+    }
+    return ratio < 0.5 ? 'before' : 'after'
+  }, [])
+
+  const endDrag = useCallback(() => { setDragId(null); setDropHint(null) }, [])
 
   useEffect(() => {
     if (!menu) return
@@ -103,16 +125,54 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
     const collapseKey = `${entryGuid}:${node.Id}`
     const collapsed = !!collapsedNodes[collapseKey]
 
+    const isDragging = dragId === node.Id
+    const hint = dropHint?.nodeId === node.Id ? dropHint.position : null
+
     return (
       <div key={node.Id}>
         <div
+          draggable={!isRoot}
+          onDragStart={(e) => {
+            e.stopPropagation()
+            setDragId(node.Id)
+            e.dataTransfer.effectAllowed = 'move'
+            // Firefox requires data to be set for the drag to start at all
+            e.dataTransfer.setData('text/plain', String(node.Id))
+          }}
+          onDragEnd={endDrag}
+          onDragOver={(e) => {
+            if (dragId === null || dragId === node.Id) return
+            e.preventDefault()
+            e.stopPropagation()
+            e.dataTransfer.dropEffect = 'move'
+            const position = dropPositionFor(e, node)
+            if (dropHint?.nodeId !== node.Id || dropHint.position !== position) {
+              setDropHint({ nodeId: node.Id, position })
+            }
+          }}
+          onDragLeave={(e) => {
+            e.stopPropagation()
+            if (dropHint?.nodeId === node.Id) setDropHint(null)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (dragId !== null && dragId !== node.Id) {
+              moveEntryNodeTo(entryGuid, dragId, node.Id, dropPositionFor(e, node))
+            }
+            endDrag()
+          }}
           onClick={(e) => { e.stopPropagation(); select({ kind: 'node', entryGuid, nodeId: node.Id }) }}
           onContextMenu={(e) => openMenu(e, node, siblings, index)}
-          className={`group flex items-center gap-1 py-[3px] pr-2 cursor-pointer text-[12px] transition-colors border-l-2
-            ${isSelected ? 'bg-emerald-900/40 border-emerald-500' : 'border-transparent hover:bg-gray-700/50'}`}
+          className={`group relative flex items-center gap-1 py-[3px] pr-2 cursor-pointer text-[12px] transition-colors border-l-2
+            ${isSelected ? 'bg-emerald-900/40 border-emerald-500' : 'border-transparent hover:bg-gray-700/50'}
+            ${isDragging ? 'opacity-40' : ''}
+            ${hint === 'inside' ? 'ring-1 ring-inset ring-sky-400 bg-sky-900/25' : ''}`}
           style={{ paddingLeft: 30 + depth * 14 }}
-          title="右键打开节点操作菜单"
+          title={isRoot ? '根节点：拖动其它节点到此处可移入' : '拖动可调整顺序 · 右键打开操作菜单'}
         >
+          {hint === 'before' && <DropLine />}
+          {hint === 'after' && <DropLine bottom />}
           <button
             onClick={(e) => { e.stopPropagation(); if (hasChildren) toggleNodeCollapsed(collapseKey) }}
             className={`w-3 flex-shrink-0 text-[10px] ${hasChildren ? 'text-gray-500 hover:text-gray-200' : 'text-transparent cursor-default'}`}
@@ -236,6 +296,15 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
         </div>
       )}
     </>
+  )
+}
+
+/** Insertion indicator drawn on the edge of the hovered row */
+function DropLine({ bottom }: { bottom?: boolean }) {
+  return (
+    <div
+      className={`absolute left-0 right-0 h-0.5 bg-sky-400 pointer-events-none z-10 ${bottom ? 'bottom-0' : 'top-0'}`}
+    />
   )
 }
 

@@ -2,7 +2,7 @@
 import type { PtlDocument, PtlAnchor, PtlEntry, PtlNode } from '@shared/prTypes'
 import {
   createAnchor, createEntry, createNode, newGuid,
-  sortedAnchors, findNode, findNodeParent, nextNodeId, reassignNodeIds
+  sortedAnchors, findNode, findNodeParent, nextNodeId, reassignNodeIds, isCompositeNode
 } from './prModel'
 
 /** Append a new anchor 5s after the last non-end anchor (clamped before the end anchor) */
@@ -85,6 +85,87 @@ export function moveNodeInEntry(entry: PtlEntry, nodeId: number, dir: -1 | 1): b
   if (idx < 0 || target < 0 || target >= parent.Children.length) return false
   const [node] = parent.Children.splice(idx, 1)
   parent.Children.splice(target, 0, node)
+  return true
+}
+
+/** Where a dragged node should land relative to the drop target */
+export type DropPosition = 'before' | 'after' | 'inside'
+
+/** True when `ancestorId` is `nodeId` or one of its ancestors — blocks dropping a node into itself */
+export function isDescendantOf(root: PtlNode, nodeId: number, ancestorId: number): boolean {
+  if (nodeId === ancestorId) return true
+  const ancestor = findNode(root, ancestorId)
+  if (!ancestor) return false
+  let found = false
+  const walk = (n: PtlNode) => {
+    if (n.Id === nodeId) found = true
+    for (const c of n.Children ?? []) walk(c)
+  }
+  for (const c of ancestor.Children ?? []) walk(c)
+  return found
+}
+
+/**
+ * Whether a drag/drop is legal. Rejects dropping the root, dropping onto
+ * itself or into its own subtree, dropping beside the root (it has no parent),
+ * and dropping *into* a leaf node.
+ */
+export function canMoveNodeTo(
+  entry: PtlEntry,
+  nodeId: number,
+  targetId: number,
+  position: DropPosition
+): boolean {
+  const root = entry.EntryGroup
+  if (nodeId === root.Id) return false
+  if (isDescendantOf(root, targetId, nodeId)) return false
+
+  const sourceParent = findNodeParent(root, nodeId)
+  if (!sourceParent?.Children) return false
+
+  const target = findNode(root, targetId)
+  if (!target) return false
+
+  if (position === 'inside') return isCompositeNode(target)
+  if (targetId === root.Id) return false
+  return !!findNodeParent(root, targetId)?.Children
+}
+
+/**
+ * Move `nodeId` next to (or into) `targetId`. Call canMoveNodeTo first —
+ * this returns false without touching the tree when the move is illegal.
+ */
+export function moveNodeTo(
+  entry: PtlEntry,
+  nodeId: number,
+  targetId: number,
+  position: DropPosition
+): boolean {
+  if (!canMoveNodeTo(entry, nodeId, targetId, position)) return false
+
+  const root = entry.EntryGroup
+  const sourceParent = findNodeParent(root, nodeId)!
+  let destParent: PtlNode
+  let destIndex: number
+
+  if (position === 'inside') {
+    destParent = findNode(root, targetId)!
+    if (!destParent.Children) destParent.Children = []
+    destIndex = destParent.Children.length
+  } else {
+    destParent = findNodeParent(root, targetId)!
+    destIndex = destParent.Children!.findIndex(c => c.Id === targetId)
+    if (position === 'after') destIndex += 1
+  }
+
+  const sourceIndex = sourceParent.Children!.findIndex(c => c.Id === nodeId)
+  if (sourceIndex < 0) return false
+
+  // Removing first shifts later indices within the same parent
+  const [node] = sourceParent.Children!.splice(sourceIndex, 1)
+  if (destParent === sourceParent && sourceIndex < destIndex) destIndex -= 1
+
+  destParent.Children!.splice(destIndex, 0, node)
   return true
 }
 

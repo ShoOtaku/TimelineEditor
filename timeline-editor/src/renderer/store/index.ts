@@ -55,6 +55,8 @@ export interface EditorStore {
   updateNode: (nodeId: number, changes: Partial<TreeNode>) => void
   deleteNode: (nodeId: number) => void
   addChild: (parentId: number, nodeType: string, index?: number) => void
+  /** insert a new node directly after siblingId, under the same parent */
+  addSibling: (siblingId: number, nodeType: string) => void
   moveNode: (nodeId: number, newParentId: number, index: number) => void
   toggleNodeEnabled: (nodeId: number) => void
   duplicateNode: (nodeId: number) => void
@@ -110,6 +112,17 @@ function findNodeById(doc: TriggerLineDocument, id: number): TreeNode | null {
     return null
   }
   return search(doc.TreeRoot as unknown as TreeNode)
+}
+
+/** True when `candidateId` is `node` itself or anywhere inside its subtree */
+function isDescendant(node: TreeNode, candidateId: number): boolean {
+  if (node.Id === candidateId) return true
+  if ('Childs' in node && Array.isArray(node.Childs)) {
+    for (const child of node.Childs) {
+      if (isDescendant(child, candidateId)) return true
+    }
+  }
+  return false
 }
 
 function getNextId(doc: TriggerLineDocument): number {
@@ -408,14 +421,37 @@ export const useStore = create<EditorStore>()(
       })
     },
 
+    addSibling: (siblingId, nodeType) => {
+      set((s) => {
+        if (!s.doc) return
+        const parentId = findParentId(s.doc, siblingId)
+        // Root has no parent — fall back to appending inside it
+        const targetParent = parentId ?? (s.doc.TreeRoot as any).Id ?? 0
+        const parent = findNodeById(s.doc, targetParent)
+        if (!parent || !('Childs' in parent) || !Array.isArray(parent.Childs)) return
+        const idx = parent.Childs!.findIndex(c => c.Id === siblingId)
+        pushUndo(s)
+        const newId = getNextId(s.doc)
+        const newNode = createDefaultNode(nodeType, newId)
+        parent.Childs!.splice(idx >= 0 ? idx + 1 : parent.Childs!.length, 0, newNode)
+        s.selectedNodeId = newId
+        s.isDirty = true
+      })
+    },
+
     moveNode: (nodeId, newParentId, index) => {
       set((s) => {
         if (!s.doc) return
-        pushUndo(s)
+        if (nodeId === newParentId) return
         const node = findNodeById(s.doc, nodeId)
         if (!node) return
+        // Dropping a node into its own subtree would delete it: the destination
+        // parent disappears along with the removed branch, so the re-insert fails.
+        if (isDescendant(node, newParentId)) return
+        pushUndo(s)
+        const snapshot = JSON.parse(JSON.stringify(node)) as TreeNode
         deleteNodeFromDoc(s.doc, nodeId)
-        addNodeToParent(s.doc, newParentId, node, index)
+        addNodeToParent(s.doc, newParentId, snapshot, index)
         s.isDirty = true
       })
     },

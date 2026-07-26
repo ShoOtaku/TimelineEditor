@@ -1,4 +1,5 @@
 import type { PtlDocument, PtlAnchor, PtlEntry, PtlNode, PtlMeta, PtlSyncRule } from '@shared/prTypes'
+import type { DropPosition } from '../pr/prMutations'
 
 /** What the PR editor currently has selected — drives the property panel */
 export type PrSelection =
@@ -79,6 +80,8 @@ export interface PrStore {
   updateEntryNode: (entryGuid: string, nodeId: number, changes: Partial<PtlNode>) => void
   deleteEntryNode: (entryGuid: string, nodeId: number) => void
   moveEntryNode: (entryGuid: string, nodeId: number, dir: -1 | 1) => void
+  /** drag & drop: place nodeId before/after targetId, or inside it as a child */
+  moveEntryNodeTo: (entryGuid: string, nodeId: number, targetId: number, position: DropPosition) => void
   duplicateEntryNode: (entryGuid: string, nodeId: number) => void
 
   undo: () => void

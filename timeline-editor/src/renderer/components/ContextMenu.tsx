@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
+import { isComposite } from '@shared/types'
 
 interface ContextMenuState {
   x: number
@@ -55,6 +56,7 @@ export function ContextMenu({ menu, hideMenu }: {
   hideMenu: () => void
 }) {
   const addChild = useStore(s => s.addChild)
+  const addSibling = useStore(s => s.addSibling)
   const deleteNode = useStore(s => s.deleteNode)
   const duplicateNode = useStore(s => s.duplicateNode)
   const copyNode = useStore(s => s.copyNode)
@@ -64,31 +66,38 @@ export function ContextMenu({ menu, hideMenu }: {
   const clipboard = useStore(s => s.clipboard)
 
   const node = menu.nodeId !== null ? getNodeById(menu.nodeId) : null
+  const isRoot = menu.nodeId === null || menu.nodeId === 0
+  // Leaf nodes (condition/action/script/delay/…) cannot hold children
+  const canHoldChildren = !node || isComposite(node)
+
+  // Sibling insertion is the common case on a leaf; default that submenu open there
+  const [submenu, setSubmenu] = useState<'child' | 'sibling' | null>(
+    canHoldChildren ? 'child' : 'sibling'
+  )
 
   const handleAddChild = useCallback((type: string) => {
-    const parentId = menu.nodeId ?? 0
-    addChild(parentId, type)
+    addChild(menu.nodeId ?? 0, type)
     hideMenu()
   }, [menu.nodeId, addChild, hideMenu])
 
+  const handleAddSibling = useCallback((type: string) => {
+    if (menu.nodeId === null) return
+    addSibling(menu.nodeId, type)
+    hideMenu()
+  }, [menu.nodeId, addSibling, hideMenu])
+
   const handleDelete = useCallback(() => {
-    if (menu.nodeId !== null && menu.nodeId !== 0) {
-      deleteNode(menu.nodeId)
-    }
+    if (menu.nodeId !== null && menu.nodeId !== 0) deleteNode(menu.nodeId)
     hideMenu()
   }, [menu.nodeId, deleteNode, hideMenu])
 
   const handleDuplicate = useCallback(() => {
-    if (menu.nodeId !== null && menu.nodeId !== 0) {
-      duplicateNode(menu.nodeId)
-    }
+    if (menu.nodeId !== null && menu.nodeId !== 0) duplicateNode(menu.nodeId)
     hideMenu()
   }, [menu.nodeId, duplicateNode, hideMenu])
 
   const handleCopy = useCallback(() => {
-    if (menu.nodeId !== null && menu.nodeId !== 0) {
-      copyNode(menu.nodeId)
-    }
+    if (menu.nodeId !== null && menu.nodeId !== 0) copyNode(menu.nodeId)
     hideMenu()
   }, [menu.nodeId, copyNode, hideMenu])
 
@@ -98,38 +107,47 @@ export function ContextMenu({ menu, hideMenu }: {
   }, [menu.nodeId, pasteNode, hideMenu])
 
   const handleToggle = useCallback(() => {
-    if (menu.nodeId !== null) {
-      toggleNodeEnabled(menu.nodeId)
-    }
+    if (menu.nodeId !== null) toggleNodeEnabled(menu.nodeId)
     hideMenu()
   }, [menu.nodeId, toggleNodeEnabled, hideMenu])
 
   return (
     <div
-      className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl py-1 min-w-[200px] overflow-hidden"
+      className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl py-1 min-w-[210px] max-h-[80vh] overflow-y-auto"
       style={{ left: menu.x, top: menu.y }}
     >
-      {/* Node info */}
       {node && (
         <div className="px-3 py-1.5 text-[11px] text-gray-400 border-b border-gray-700">
           {node.DisplayName || 'Node'} <span className="text-gray-600">#{node.Id}</span>
+          {!canHoldChildren && <span className="text-gray-600 ml-1">· 叶子节点</span>}
         </div>
       )}
 
-      {/* Add child nodes */}
-      <div className="px-2 py-1 text-[10px] text-gray-500 uppercase tracking-wider">Add Child Node</div>
-      {ADD_NODE_TYPES.map(t => (
-        <button
-          key={t.type}
-          onClick={() => handleAddChild(t.type)}
-          className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"
-        >
-          <span className="w-5 text-center">{t.icon}</span>
-          {t.label}
-        </button>
-      ))}
+      {/* Add child — only for composite nodes */}
+      {canHoldChildren && (
+        <SubmenuHeader
+          label="添加子节点"
+          open={submenu === 'child'}
+          onClick={() => setSubmenu(s => s === 'child' ? null : 'child')}
+        />
+      )}
+      {canHoldChildren && submenu === 'child' && (
+        <NodeTypeList onPick={handleAddChild} />
+      )}
 
-      {/* Paste — always available when clipboard has content */}
+      {/* Add sibling — available on any non-root node, including leaves */}
+      {!isRoot && (
+        <SubmenuHeader
+          label="添加同级节点"
+          hint="插入到此节点之后"
+          open={submenu === 'sibling'}
+          onClick={() => setSubmenu(s => s === 'sibling' ? null : 'sibling')}
+        />
+      )}
+      {!isRoot && submenu === 'sibling' && (
+        <NodeTypeList onPick={handleAddSibling} />
+      )}
+
       {clipboard && (
         <>
           <div className="border-t border-gray-700 my-1" />
@@ -137,7 +155,7 @@ export function ContextMenu({ menu, hideMenu }: {
             onClick={handlePaste}
             className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
           >
-            📋 Paste{menu.nodeId != null && menu.nodeId !== 0 ? ' after this node' : ' at root'}
+            📋 粘贴{!isRoot ? '为同级节点' : '到根节点下'}
           </button>
         </>
       )}
@@ -149,31 +167,67 @@ export function ContextMenu({ menu, hideMenu }: {
             onClick={handleToggle}
             className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
           >
-            {node.Enable ? '🔴 Disable' : '🟢 Enable'}
+            {node.Enable ? '🔴 禁用' : '🟢 启用'}
           </button>
-          <button
-            onClick={handleDuplicate}
-            className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-            disabled={menu.nodeId === 0}
-          >
-            📋 Duplicate
-          </button>
-          <button
-            onClick={handleCopy}
-            className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-            disabled={menu.nodeId === 0}
-          >
-            📝 Copy
-          </button>
-          <button
-            onClick={handleDelete}
-            className="w-full text-left px-3 py-1 text-sm text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
-            disabled={menu.nodeId === 0}
-          >
-            🗑 Delete
-          </button>
+          {!isRoot && (
+            <>
+              <button
+                onClick={handleDuplicate}
+                className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+              >
+                ⧉ 复制为同级
+              </button>
+              <button
+                onClick={handleCopy}
+                className="w-full text-left px-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+              >
+                📝 拷贝
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-full text-left px-3 py-1 text-sm text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+              >
+                🗑 删除
+              </button>
+            </>
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+function SubmenuHeader({ label, hint, open, onClick }: {
+  label: string; hint?: string; open: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left px-3 py-1 text-sm flex items-center justify-between gap-2 transition-colors
+        ${open ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+    >
+      <span>
+        {label}
+        {hint && <span className="text-[10px] text-gray-500 ml-1.5">{hint}</span>}
+      </span>
+      <span className="text-gray-500">{open ? '▾' : '▸'}</span>
+    </button>
+  )
+}
+
+function NodeTypeList({ onPick }: { onPick: (type: string) => void }) {
+  return (
+    <div className="border-y border-gray-700/70 my-1 py-0.5 bg-gray-900/40">
+      {ADD_NODE_TYPES.map(t => (
+        <button
+          key={t.type}
+          onClick={() => onPick(t.type)}
+          className="w-full text-left pl-6 pr-3 py-1 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"
+        >
+          <span className="w-5 text-center">{t.icon}</span>
+          {t.label}
+        </button>
+      ))}
     </div>
   )
 }

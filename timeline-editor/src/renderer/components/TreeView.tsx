@@ -210,17 +210,15 @@ function TreeNodeRow({ node, depth, parentId, showMenu, onDropNode }: TreeNodeRo
           </button>
         )}
 
-        {/* Child count + add button */}
+        {/* Child count + node menu */}
         <span className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-          {isComp && (
-            <button
-              onClick={handleAddChild}
-              className="text-[11px] text-gray-600 hover:text-blue-400 hover:bg-gray-700 rounded px-1 leading-none transition-colors"
-              title="添加子节点"
-            >
-              +
-            </button>
-          )}
+          <button
+            onClick={handleAddChild}
+            className="text-[11px] text-gray-600 hover:text-blue-400 hover:bg-gray-700 rounded px-1 leading-none transition-colors"
+            title={isComp ? '节点菜单：添加子节点 / 同级节点' : '节点菜单：添加同级节点'}
+          >
+            +
+          </button>
           {childCount > 0 && (
             <span className="text-[9px] text-gray-600">{childCount}</span>
           )}

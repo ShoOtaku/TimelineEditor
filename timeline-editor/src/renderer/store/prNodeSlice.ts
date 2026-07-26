@@ -5,7 +5,8 @@ import type { PrStore } from './prStoreTypes'
 import { pushUndo, getEntry } from './prStoreTypes'
 import { findNode } from '../pr/prModel'
 import {
-  addNodeToEntry, addSiblingToEntry, deleteNodeFromEntry, moveNodeInEntry, duplicateNodeInEntry
+  addNodeToEntry, addSiblingToEntry, deleteNodeFromEntry, moveNodeInEntry,
+  duplicateNodeInEntry, moveNodeTo, canMoveNodeTo
 } from '../pr/prMutations'
 
 type SetFn = (updater: (state: PrStore) => void) => void
@@ -13,7 +14,7 @@ type SetFn = (updater: (state: PrStore) => void) => void
 type NodeSlice = Pick<
   PrStore,
   'addEntryNode' | 'addSiblingNode' | 'updateEntryNode'
-  | 'deleteEntryNode' | 'moveEntryNode' | 'duplicateEntryNode'
+  | 'deleteEntryNode' | 'moveEntryNode' | 'moveEntryNodeTo' | 'duplicateEntryNode'
 >
 
 export function createNodeSlice(set: SetFn): NodeSlice {
@@ -84,6 +85,20 @@ export function createNodeSlice(set: SetFn): NodeSlice {
         if (!entry) return
         pushUndo(s)
         moveNodeInEntry(entry, nodeId, dir)
+        s.isDirty = true
+      })
+    },
+
+    moveEntryNodeTo: (entryGuid, nodeId, targetId, position) => {
+      set((s) => {
+        if (!s.doc) return
+        const entry = getEntry(s.doc, entryGuid)
+        if (!entry) return
+        // Validate before snapshotting so an illegal drop leaves no undo entry
+        if (!canMoveNodeTo(entry, nodeId, targetId, position)) return
+        pushUndo(s)
+        moveNodeTo(entry, nodeId, targetId, position)
+        s.selection = { kind: 'node', entryGuid, nodeId }
         s.isDirty = true
       })
     },

@@ -4,6 +4,9 @@ import type { TreeNode, AcrTypeDef } from '@shared/types'
 import { isComposite, getDisplayType } from '@shared/types'
 import { ConditionEditor } from './ConditionEditor'
 import { ActionEditor } from './ActionEditor'
+import {
+  AE_CONDITION_SPECS, AE_ACTION_SPECS, createAeConditionDefault, createAeActionDefault
+} from '@shared/aeAssistSpecs'
 
 export function PropertyPanel() {
   const doc = useStore(s => s.doc)
@@ -430,40 +433,20 @@ export function PropertyPanel() {
 // 条件类型选项 & 工厂函数
 // ============================================================
 
-const BUILTIN_COND_TYPES = [
-  { value: 'TriggerCondEnemyCastSpell', label: '敌人读条使用技能' },
-  { value: 'TriggerCondCheckSpellCd', label: '检测技能CD' },
-  { value: 'TriggerCondReceviceAbilityEffect', label: '等待技能效果' },
-  { value: 'TriggerCondReceviceNoTargetAbilityEffect', label: '无目标技能效果' },
-  { value: 'TriggerCondCheckLastSpell', label: '检测自身技能使用' },
-  { value: 'TriggerCondAfterSpell', label: '等待技能释放' },
-  { value: 'TriggerCondVariable', label: '变量检测' },
-  { value: 'TriggerCondOnWeatherIdChanged', label: '天气变化' },
-  { value: 'TriggerCondAfterBattleStart', label: '战斗计时器' },
-  { value: 'TriggerCondCheckPartyRole', label: '自身职能检测' },
-  { value: 'TriggerCondGameLog', label: '聊天监控' },
-  { value: 'TriggerCondAfterUnitIsTargetable', label: '等待目标可选中' },
-  { value: 'TriggerCondAfterUnitRemove', label: '等待目标消失' },
-  { value: 'TriggerCondActorControlTargetIcon', label: '技能点名图标' },
-  { value: 'TriggerCondCheckRecentlyTether', label: '最近连线检测' },
-  { value: 'TriggerCondMapEffect', label: '地图效果' },
-  { value: 'TriggerCondBeforeBattleTime', label: '战斗时间之前' },
-  { value: 'TriggerCondWaitTarget', label: '等待目标' },
-]
+const BUILTIN_COND_TYPES = AE_CONDITION_SPECS.map(spec => ({
+  value: spec.shortName,
+  label: spec.label || spec.displayName,
+}))
 
 function createDefaultCondition(type: string, acrTypes?: AcrTypeDef[]): any {
-  const base: any = { Remark: null }
-  const ns = 'AEAssist.CombatRoutine.Trigger.TriggerCond'
-
   // Check if this is an ACR type (full $type string)
   if (type.includes(',') && !type.startsWith('AEAssist.')) {
     const acrDef = acrTypes?.find(t => t.$type === type)
-    const obj: any = { ...base, $type: type, DisplayName: acrDef?.displayName || type }
+    const obj: any = { Remark: null, $type: type, DisplayName: acrDef?.displayName || type }
     if (acrDef) {
       for (const field of acrDef.fields) {
-        if (field.enumValues && field.enumValues.length > 0) {
-          obj[field.key] = field.enumValues[0].value
-        } else if (field.type === 'boolean') obj[field.key] = false
+        if (field.enumValues && field.enumValues.length > 0) obj[field.key] = field.enumValues[0].value
+        else if (field.type === 'boolean') obj[field.key] = false
         else if (field.type === 'number') obj[field.key] = 0
         else if (field.type === 'object') obj[field.key] = {}
         else obj[field.key] = ''
@@ -471,85 +454,23 @@ function createDefaultCondition(type: string, acrTypes?: AcrTypeDef[]): any {
     }
     return obj
   }
-
-  switch (type) {
-    case 'TriggerCondEnemyCastSpell':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/敌人读条使用技能', RegexNameOrId: '', NeedTargetable: false }
-    case 'TriggerCondCheckSpellCd':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/检测技能CD', SpellId: 0, CoolDown: 0, Larger: false }
-    case 'TriggerCondReceviceAbilityEffect':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '副本流程/等待效果触发AbilityEffect', ActionId: 0, CheckIsMe: false, LimitType: 0 }
-    case 'TriggerCondReceviceNoTargetAbilityEffect':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '副本流程/无目标AbilityEffect', ActionId: 0 }
-    case 'TriggerCondCheckLastSpell':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/检测自身技能使用', SpellId: 0 }
-    case 'TriggerCondAfterSpell':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/等待技能释放', SpellId: 0 }
-    case 'TriggerCondVariable':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/变量值', VariableName: '', CompareType: 0, VariableVaule: 0 }
-    case 'TriggerCondOnWeatherIdChanged':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/天气变化', WeatherId: 0 }
-    case 'TriggerCondAfterBattleStart':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/战斗开始后多少秒', Delay: 0 }
-    case 'TriggerCondCheckPartyRole':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/自身职能', PartyRole: 'MT' }
-    case 'TriggerCondGameLog':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/聊天监控', RegexValue: '', LimitMsgType: false, MsgType: 0 }
-    case 'TriggerCondAfterUnitIsTargetable':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/等待敌对目标可选中', DataId: 0 }
-    case 'TriggerCondAfterUnitRemove':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/等待目标消失', DataId: 0 }
-    case 'TriggerCondActorControlTargetIcon':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '副本流程/等待技能点名TargetIcon', Args0: 0 }
-    case 'TriggerCondCheckRecentlyTether':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '副本流程/检测自身最近连线', Args0: 0, CheckTime: 1 }
-    case 'TriggerCondMapEffect':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/MapEffect', Pos: 0, Arg0: 0, Arg1: 0 }
-    case 'TriggerCondBeforeBattleTime':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/在指定战斗时间之前', TargetTime: 0 }
-    case 'TriggerCondWaitTarget':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/目标符合条件', TargetSelector: { Enable: false, Target: 0, FilterDatas: [], NeedTargetable: false, SndFilter: 0, PMIndex: 0 } }
-    default:
-      return { ...base, $type: type, DisplayName: type }
-  }
+  return createAeConditionDefault(type)
 }
 
 // ============================================================
 // 动作类型选项 & 工厂函数
 // ============================================================
 
-const BUILTIN_ACTION_TYPES = [
-  { value: 'TriggerActionCastSpell', label: '强制使用技能' },
-  { value: 'TriggerActionHighPrioritySlot', label: '插入高优先级技能' },
-  { value: 'TriggerActionSpellQueue', label: '强制使用技能队列' },
-  { value: 'TriggerAction_SendCommand', label: '发送指令' },
-  { value: 'TriggerActionSelectenemy', label: '切换目标' },
-  { value: 'TriggerActionUsePotion', label: '使用爆发药' },
-  { value: 'TriggerActionSwitchStop', label: '切换停手' },
-  { value: 'TriggerActionLockSpell', label: '锁定技能' },
-  { value: 'TriggerActionAddVariable', label: '设置变量' },
-  { value: 'TriggerAction_SimpleTP', label: '初级TP' },
-  { value: 'TriggerAction_MoveTo', label: '移动到目标' },
-]
-
-function makeSpellConfig() {
-  return {
-    Remark: '', Category: 0, SpellId: 0, CoolDowncheck: false, CoolDowncheck_time: 0,
-    TargetType: 0, IsPartyMember: true, LimitJobType: 0, LimitBuffIds: [],
-    LimitMaxHpType: 0, LimitHpType: 0, Location: { X: 0, Y: 0, Z: 0 },
-    TargetSelector: { Enable: false, Target: 0, FilterDatas: [], NeedTargetable: false, SndFilter: 0, PMIndex: 0 },
-    AutoCheckActionChange: true,
-  }
-}
+const BUILTIN_ACTION_TYPES = AE_ACTION_SPECS.map(spec => ({
+  value: spec.shortName,
+  label: spec.label || spec.displayName,
+}))
 
 function createDefaultAction(type: string, acrTypes?: AcrTypeDef[]): any {
-  const base: any = { Remark: null }
-  const ns = 'AEAssist.CombatRoutine.Trigger.TriggerAction'
-
   // Check if this is an ACR type (full $type string)
   if (type.includes(',') && !type.startsWith('AEAssist.')) {
     const acrDef = acrTypes?.find(t => t.$type === type)
-    const obj: any = { ...base, $type: type, DisplayName: acrDef?.displayName || type }
+    const obj: any = { Remark: null, $type: type, DisplayName: acrDef?.displayName || type }
     if (acrDef) {
       for (const field of acrDef.fields) {
         if (field.key === 'qtValues' && acrDef.sampleQtKeys && acrDef.sampleQtKeys.length > 0) {
@@ -557,10 +478,9 @@ function createDefaultAction(type: string, acrTypes?: AcrTypeDef[]): any {
           for (const k of acrDef.sampleQtKeys) qtv[k] = true
           obj[field.key] = qtv
         } else if (field.key === 'qtValues' && acrDef.allStrings && acrDef.allStrings.length > 0) {
-          // Fallback: filter DLL strings for likely QT keys (CJK characters, 2-10 chars)
           const likelyKeys = acrDef.allStrings.filter(s => {
             if (s.length < 2 || s.length > 12) return false
-            return /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/.test(s) || /^[A-Z][a-zA-Z]{1,15}$/.test(s)
+            return /[一-鿿぀-ゟ゠-ヿ]/.test(s) || /^[A-Z][a-zA-Z]{1,15}$/.test(s)
           })
           if (likelyKeys.length > 0) {
             const qtv: Record<string, boolean> = {}
@@ -590,33 +510,7 @@ function createDefaultAction(type: string, acrTypes?: AcrTypeDef[]): any {
     }
     return obj
   }
-
-  switch (type) {
-    case 'TriggerActionCastSpell':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '技能使用/强制使用技能', SpellConfig: makeSpellConfig() }
-    case 'TriggerActionHighPrioritySlot':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '技能使用/插入高优先级技能', SpellConfig: makeSpellConfig(), Clear: false, DoubleClear: false }
-    case 'TriggerActionSpellQueue':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '技能使用/强制使用技能队列', Data: [] }
-    case 'TriggerAction_SendCommand':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '指令/发送指令', Command: '' }
-    case 'TriggerActionSelectenemy':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/切换目标', NameorId: '', TargetSelector: { Enable: false, Target: 4, FilterDatas: [], NeedTargetable: true, SndFilter: 1, PMIndex: 0 } }
-    case 'TriggerActionUsePotion':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/使用爆发药' }
-    case 'TriggerActionSwitchStop':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/切换停手', Stop: true }
-    case 'TriggerActionLockSpell':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '技能使用/锁定技能', IdList: [], IsLock: true }
-    case 'TriggerActionAddVariable':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'General/设置变量', VariableName: '', SetVariableVaule: 0 }
-    case 'TriggerAction_SimpleTP':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: 'TP/初级TP', SimplePointSelector: { SelectType: 0, FixedPoint: { X: 100, Y: 0, Z: 100 }, HeadMarker: 0, MapMarker: 0, PartyMember: 0, RelatePos: false, RelatedExDis: 1, RelatedRot: 0, Args0: 0, RecentTime: 1 } }
-    case 'TriggerAction_MoveTo':
-      return { ...base, $type: `${ns}.${type}, AEAssist`, DisplayName: '移动到目标', Pos: { X: 100, Y: 0, Z: 100 }, Use2: false }
-    default:
-      return { ...base, $type: type, DisplayName: type }
-  }
+  return createAeActionDefault(type)
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {

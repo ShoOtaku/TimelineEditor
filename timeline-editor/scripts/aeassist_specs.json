@@ -1,0 +1,2813 @@
+{
+  "_meta": {
+    "source": "AEAssist.dll",
+    "sourcePath": "C:\\Users\\xiaos\\AppData\\Roaming\\XIVLauncherCN\\offlineplugins\\AE\\AEAssist\\AEAssist\\AEAssist.dll",
+    "assembly": "AEAssist",
+    "conditionCount": 26,
+    "actionCount": 17,
+    "enumCount": 18,
+    "complexTypeCount": 4,
+    "missingDisplayName": [],
+    "generator": "extract_aeassist_specs.py"
+  },
+  "conditions": [
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondActorControlTargetIcon, AEAssist",
+      "shortName": "TriggerCondActorControlTargetIcon",
+      "displayName": "副本流程/不支持立即检测/等待技能点名TargetIcon",
+      "category": "副本流程/不支持立即检测",
+      "label": "等待技能点名TargetIcon",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Args0",
+          "type": "int",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondActorControlTether, AEAssist",
+      "shortName": "TriggerCondActorControlTether",
+      "displayName": "副本流程/不支持立即检测/等待连线",
+      "category": "副本流程/不支持立即检测",
+      "label": "等待连线",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Args0",
+          "type": "uint",
+          "default": "",
+          "member": "property",
+          "label": "Args0"
+        },
+        {
+          "name": "Target",
+          "type": "enum:SpellTargetType",
+          "default": "",
+          "member": "property",
+          "label": "连线目标,不支持动态和选择器"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondActorDeath, AEAssist",
+      "shortName": "TriggerCondActorDeath",
+      "displayName": "副本流程/不支持立即检测/单位死亡",
+      "category": "副本流程/不支持立即检测",
+      "label": "单位死亡",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "NameorId",
+          "type": "string",
+          "default": "",
+          "member": "property",
+          "label": "Name or DataId"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondAfterBattleStart, AEAssist",
+      "shortName": "TriggerCondAfterBattleStart",
+      "displayName": "General/战斗开始后多少秒",
+      "category": "General",
+      "label": "战斗开始后多少秒",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Delay",
+          "type": "float",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondAfterSpell, AEAssist",
+      "shortName": "TriggerCondAfterSpell",
+      "displayName": "General/等待技能释放",
+      "category": "General",
+      "label": "等待技能释放",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "SpellId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondAfterUnitIsTargetable, AEAssist",
+      "shortName": "TriggerCondAfterUnitIsTargetable",
+      "displayName": "General/等待敌对目标可选中",
+      "category": "General",
+      "label": "等待敌对目标可选中",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "DataId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondAfterUnitRemove, AEAssist",
+      "shortName": "TriggerCondAfterUnitRemove",
+      "displayName": "General/等待目标消失",
+      "category": "General",
+      "label": "等待目标消失",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "DataId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondBeforeBattleTime, AEAssist",
+      "shortName": "TriggerCondBeforeBattleTime",
+      "displayName": "General/在指定战斗时间(秒)之前",
+      "category": "General",
+      "label": "在指定战斗时间(秒)之前",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "TargetTime",
+          "type": "int",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckAbilityEffect, AEAssist",
+      "shortName": "TriggerCondCheckAbilityEffect",
+      "displayName": "副本流程/检测自身最近是否ReceiveAbilityEffect",
+      "category": "副本流程",
+      "label": "检测自身最近是否ReceiveAbilityEffect",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "ActionId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "CheckTime",
+          "type": "float",
+          "default": "1f",
+          "member": "property",
+          "label": "检测时间(秒)"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckLastSpell, AEAssist",
+      "shortName": "TriggerCondCheckLastSpell",
+      "displayName": "General/检测自身技能使用",
+      "category": "General",
+      "label": "检测自身技能使用",
+      "fields": [
+        {
+          "name": "SpellId",
+          "type": "uint",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckOmegaLoop, AEAssist",
+      "shortName": "TriggerCondCheckOmegaLoop",
+      "displayName": "绝欧/自身麻将",
+      "category": "绝欧",
+      "label": "自身麻将",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "麻将号码",
+          "type": "enum:麻将",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckPartyRole, AEAssist",
+      "shortName": "TriggerCondCheckPartyRole",
+      "displayName": "General/自身职能",
+      "category": "General",
+      "label": "自身职能",
+      "fields": [
+        {
+          "name": "PartyRole",
+          "type": "string",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckRecentlyTether, AEAssist",
+      "shortName": "TriggerCondCheckRecentlyTether",
+      "displayName": "副本流程/检测自身最近是否被连线Tether",
+      "category": "副本流程",
+      "label": "检测自身最近是否被连线Tether",
+      "fields": [
+        {
+          "name": "Args0",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "CheckTime",
+          "type": "float",
+          "default": "1f",
+          "member": "property",
+          "label": "检测时间(秒)"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckSpellCd, AEAssist",
+      "shortName": "TriggerCondCheckSpellCd",
+      "displayName": "General/检测技能CD",
+      "category": "General",
+      "label": "检测技能CD",
+      "fields": [
+        {
+          "name": "SpellId",
+          "type": "uint",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CoolDown",
+          "type": "uint",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Larger",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondCheckTargetIcon, AEAssist",
+      "shortName": "TriggerCondCheckTargetIcon",
+      "displayName": "副本流程/检测自身最近是否被技能点名TargetIcon",
+      "category": "副本流程",
+      "label": "检测自身最近是否被技能点名TargetIcon",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Args0",
+          "type": "int",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "CheckTime",
+          "type": "float",
+          "default": "1f",
+          "member": "property",
+          "label": "检测时间(秒)"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondEnemyCastSpell, AEAssist",
+      "shortName": "TriggerCondEnemyCastSpell",
+      "displayName": "General/敌人读条使用技能",
+      "category": "General",
+      "label": "敌人读条使用技能",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "RegexNameOrId",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "property"
+        },
+        {
+          "name": "NeedTargetable",
+          "type": "bool",
+          "default": "",
+          "member": "property",
+          "label": "施法单位必须可选中"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondGameLog, AEAssist",
+      "shortName": "TriggerCondGameLog",
+      "displayName": "General/聊天监控",
+      "category": "General",
+      "label": "聊天监控",
+      "fields": [
+        {
+          "name": "RegexValue",
+          "type": "string",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "LimitMsgType",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "MsgType",
+          "type": "int",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondLBCheck, AEAssist",
+      "shortName": "TriggerCondLBCheck",
+      "displayName": "General/LB检查",
+      "category": "General",
+      "label": "LB检查",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondMapEffect, AEAssist",
+      "shortName": "TriggerCondMapEffect",
+      "displayName": "General/MapEffect",
+      "category": "General",
+      "label": "MapEffect",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Pos",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Arg0",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Arg1",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondMonitorACT, AEAssist",
+      "shortName": "TriggerCondMonitorACT",
+      "displayName": "General/ACT日志监控(废弃)",
+      "category": "General",
+      "label": "ACT日志监控(废弃)",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "RegexValue",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "property",
+          "label": "正则表达式"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondOnWeatherIdChanged, AEAssist",
+      "shortName": "TriggerCondOnWeatherIdChanged",
+      "displayName": "General/天气变化",
+      "category": "General",
+      "label": "天气变化",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "WeatherId",
+          "type": "int",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondReceviceAbilityEffect, AEAssist",
+      "shortName": "TriggerCondReceviceAbilityEffect",
+      "displayName": "副本流程/不支持立即检测/等待效果触发AbilityEffect",
+      "category": "副本流程/不支持立即检测",
+      "label": "等待效果触发AbilityEffect",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "ActionId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "CheckIsMe",
+          "type": "bool",
+          "default": "",
+          "member": "property",
+          "label": "不点自己返回false"
+        },
+        {
+          "name": "LimitType",
+          "type": "enum:ReceiveAbilityLimitType",
+          "default": "",
+          "member": "property",
+          "label": "限定条件(不符合条件返回false)"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondReceviceNoTargetAbilityEffect, AEAssist",
+      "shortName": "TriggerCondReceviceNoTargetAbilityEffect",
+      "displayName": "副本流程/不支持立即检测/等待效果触发无目标AbilityEffect",
+      "category": "副本流程/不支持立即检测",
+      "label": "等待效果触发无目标AbilityEffect",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "ActionId",
+          "type": "uint",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondVariable, AEAssist",
+      "shortName": "TriggerCondVariable",
+      "displayName": "General/变量值",
+      "category": "General",
+      "label": "变量值",
+      "fields": [
+        {
+          "name": "VariableName",
+          "type": "string",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CompareType",
+          "type": "enum:CompareType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "VariableVaule",
+          "type": "int",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCondWaitTarget, AEAssist",
+      "shortName": "TriggerCondWaitTarget",
+      "displayName": "General/目标符合条件",
+      "category": "General",
+      "label": "目标符合条件",
+      "fields": [
+        {
+          "name": "TargetSelector",
+          "type": "TargetSelector",
+          "default": "new TargetSelector { Enable = true }",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerCond.TriggerCond_CheckCharacterType, AEAssist",
+      "shortName": "TriggerCond_CheckCharacterType",
+      "displayName": "副本流程/[只能立即检测]检测职业类型",
+      "category": "副本流程",
+      "label": "[只能立即检测]检测职业类型",
+      "fields": [
+        {
+          "name": "JobsCategoryType",
+          "type": "enum:JobsCategoryType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionAddVariable, AEAssist",
+      "shortName": "TriggerActionAddVariable",
+      "displayName": "General/设置变量",
+      "category": "General",
+      "label": "设置变量",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "VariableName",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "SetVariableVaule",
+          "type": "int",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionCastDpsMitigation, AEAssist",
+      "shortName": "TriggerActionCastDpsMitigation",
+      "displayName": "技能使用/释放DPS减伤",
+      "category": "技能使用",
+      "label": "释放DPS减伤",
+      "fields": [
+        {
+          "name": "CoolDowncheck",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CoolDowncheck_time",
+          "type": "float",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "MitigationType",
+          "type": "enum:DpsMitigationType",
+          "default": "",
+          "member": "field",
+          "doc": "减伤类型：场地减或目标减"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ],
+      "doc": "释放 DPS 减伤技能的触发行为"
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionCastSpell, AEAssist",
+      "shortName": "TriggerActionCastSpell",
+      "displayName": "技能使用/强制使用技能",
+      "category": "技能使用",
+      "label": "强制使用技能",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "SpellConfig",
+          "type": "SpellConfig",
+          "default": "new SpellConfig()",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionHighPrioritySlot, AEAssist",
+      "shortName": "TriggerActionHighPrioritySlot",
+      "displayName": "技能使用/插入高优先级技能",
+      "category": "技能使用",
+      "label": "插入高优先级技能",
+      "fields": [
+        {
+          "name": "SpellConfig",
+          "type": "SpellConfig",
+          "default": "new SpellConfig()",
+          "member": "field",
+          "attributes": [
+            "IgnoreTriggerlineCheck"
+          ]
+        },
+        {
+          "name": "Clear",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "DoubleClear",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionLockSpell, AEAssist",
+      "shortName": "TriggerActionLockSpell",
+      "displayName": "技能使用/锁定技能",
+      "category": "技能使用",
+      "label": "锁定技能",
+      "fields": [
+        {
+          "name": "IdList",
+          "type": "List<uint>",
+          "default": "new List<uint>()",
+          "member": "field"
+        },
+        {
+          "name": "IsLock",
+          "type": "bool",
+          "default": "true",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionReplayOpener, AEAssist",
+      "shortName": "TriggerActionReplayOpener",
+      "displayName": "General/重新用起手",
+      "category": "General",
+      "label": "重新用起手",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionSelectenemy, AEAssist",
+      "shortName": "TriggerActionSelectenemy",
+      "displayName": "General/切换目标",
+      "category": "General",
+      "label": "切换目标",
+      "fields": [
+        {
+          "name": "NameorId",
+          "type": "string",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "TargetSelector",
+          "type": "TargetSelector",
+          "default": "new TargetSelector()",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionSetRotation, AEAssist",
+      "shortName": "TriggerActionSetRotation",
+      "displayName": "General/设置面向",
+      "category": "General",
+      "label": "设置面向",
+      "fields": [
+        {
+          "name": "TargetNameOrId",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "field"
+        },
+        {
+          "name": "RotationType",
+          "type": "enum:RotationType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Rotation",
+          "type": "float",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "StopACR",
+          "type": "bool",
+          "default": "true",
+          "member": "field"
+        },
+        {
+          "name": "TargetSelector",
+          "type": "TargetSelector",
+          "default": "new TargetSelector()",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionSpellQueue, AEAssist",
+      "shortName": "TriggerActionSpellQueue",
+      "displayName": "技能使用/强制使用技能队列",
+      "category": "技能使用",
+      "label": "强制使用技能队列",
+      "fields": [
+        {
+          "name": "Data",
+          "type": "List<SpellConfig>",
+          "default": "new List<SpellConfig>()",
+          "member": "property"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionSwitchPull, AEAssist",
+      "shortName": "TriggerActionSwitchPull",
+      "displayName": "General/切换自动攻击",
+      "category": "General",
+      "label": "切换自动攻击",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Pull",
+          "type": "bool",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionSwitchStop, AEAssist",
+      "shortName": "TriggerActionSwitchStop",
+      "displayName": "General/切换停手",
+      "category": "General",
+      "label": "切换停手",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Stop",
+          "type": "bool",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerActionUsePotion, AEAssist",
+      "shortName": "TriggerActionUsePotion",
+      "displayName": "General/使用爆发药",
+      "category": "General",
+      "label": "使用爆发药",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerAction_MoveTo, AEAssist",
+      "shortName": "TriggerAction_MoveTo",
+      "displayName": "移动到目标",
+      "fields": [
+        {
+          "name": "Pos",
+          "type": "Vector3",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Use2",
+          "type": "bool",
+          "default": "true",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "\"移动到指定位置\"",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerAction_OnCastingTP, AEAssist",
+      "shortName": "TriggerAction_OnCastingTP",
+      "displayName": "TP/滑步TP",
+      "category": "TP",
+      "label": "滑步TP",
+      "fields": [
+        {
+          "name": "SimplePointSelector",
+          "type": "SimplePointSelector",
+          "default": "new SimplePointSelector()",
+          "member": "field"
+        },
+        {
+          "name": "WaitTillTime",
+          "type": "int",
+          "default": "SettingMgr.GetSetting<GeneralSettings>().CastingSpellSuccessRemainTimingSlideTp",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerAction_SendCommand, AEAssist",
+      "shortName": "TriggerAction_SendCommand",
+      "displayName": "指令/发送指令",
+      "category": "指令",
+      "label": "发送指令",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "Command",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerAction_SendKey, AEAssist",
+      "shortName": "TriggerAction_SendKey",
+      "displayName": "指令/发送按键",
+      "category": "指令",
+      "label": "发送按键",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        },
+        {
+          "name": "KeyCode",
+          "type": "enum:Keys",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    },
+    {
+      "type": "AEAssist.CombatRoutine.Trigger.TriggerAction.TriggerAction_SimpleTP, AEAssist",
+      "shortName": "TriggerAction_SimpleTP",
+      "displayName": "TP/初级TP",
+      "category": "TP",
+      "label": "初级TP",
+      "fields": [
+        {
+          "name": "SimplePointSelector",
+          "type": "SimplePointSelector",
+          "default": "new SimplePointSelector()",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "",
+          "member": "property"
+        }
+      ]
+    }
+  ],
+  "enums": {
+    "CompareType": [
+      {
+        "name": "Equal",
+        "value": 0,
+        "label": "=="
+      },
+      {
+        "name": "NotEqual",
+        "value": 1,
+        "label": "!="
+      },
+      {
+        "name": "Greater",
+        "value": 2,
+        "label": ">"
+      },
+      {
+        "name": "GreaterEqual",
+        "value": 3,
+        "label": ">="
+      },
+      {
+        "name": "Less",
+        "value": 4,
+        "label": "<"
+      },
+      {
+        "name": "LessEqual",
+        "value": 5,
+        "label": "<="
+      }
+    ],
+    "DpsMitigationType": [
+      {
+        "name": "Auto",
+        "value": 0,
+        "label": "有什么放什么"
+      },
+      {
+        "name": "AreaMitigation",
+        "value": 1,
+        "label": "场地减"
+      },
+      {
+        "name": "TargetMitigation",
+        "value": 2,
+        "label": "目标减"
+      }
+    ],
+    "FilterType": [
+      {
+        "name": "Name",
+        "value": 0
+      },
+      {
+        "name": "DataId",
+        "value": 1
+      },
+      {
+        "name": "JobsCategory",
+        "value": 2,
+        "label": "职能限制"
+      },
+      {
+        "name": "HpPct",
+        "value": 3
+      },
+      {
+        "name": "HasBuff",
+        "value": 4,
+        "label": "存在Buff"
+      },
+      {
+        "name": "RecentlyTargetIcon",
+        "value": 5
+      },
+      {
+        "name": "RecentlyTether",
+        "value": 6
+      },
+      {
+        "name": "HeadIcon",
+        "value": 7,
+        "label": "头上标记(大饼之类)"
+      },
+      {
+        "name": "NoBuff",
+        "value": 8,
+        "label": "不存在buff"
+      },
+      {
+        "name": "RecentlyAbilityEffect",
+        "value": 9
+      },
+      {
+        "name": "DistanceCheck",
+        "value": 10,
+        "label": "距离检测"
+      },
+      {
+        "name": "Jobs",
+        "value": 11,
+        "label": "职业限制"
+      }
+    ],
+    "HeadMarker": [
+      {
+        "name": "攻击1",
+        "value": 0
+      },
+      {
+        "name": "攻击2",
+        "value": 1
+      },
+      {
+        "name": "攻击3",
+        "value": 2
+      },
+      {
+        "name": "攻击4",
+        "value": 3
+      },
+      {
+        "name": "攻击5",
+        "value": 4
+      },
+      {
+        "name": "止步1",
+        "value": 5
+      },
+      {
+        "name": "止步2",
+        "value": 6
+      },
+      {
+        "name": "止步3",
+        "value": 7
+      },
+      {
+        "name": "禁止1",
+        "value": 8
+      },
+      {
+        "name": "禁止2",
+        "value": 9
+      },
+      {
+        "name": "方块",
+        "value": 10
+      },
+      {
+        "name": "圆圈",
+        "value": 11
+      },
+      {
+        "name": "十字",
+        "value": 12
+      },
+      {
+        "name": "三角",
+        "value": 13
+      },
+      {
+        "name": "攻击6",
+        "value": 14
+      },
+      {
+        "name": "攻击7",
+        "value": 15
+      },
+      {
+        "name": "攻击8",
+        "value": 16
+      }
+    ],
+    "JobsCategoryType": [
+      {
+        "name": "Tank",
+        "value": 0
+      },
+      {
+        "name": "Healer",
+        "value": 1
+      },
+      {
+        "name": "Dps",
+        "value": 2
+      },
+      {
+        "name": "MT",
+        "value": 3
+      },
+      {
+        "name": "ST",
+        "value": 4
+      }
+    ],
+    "JobsType": [
+      {
+        "name": "Ast",
+        "value": 0,
+        "label": "占星"
+      },
+      {
+        "name": "Bard",
+        "value": 1,
+        "label": "诗人"
+      },
+      {
+        "name": "Dragoon",
+        "value": 2,
+        "label": "龙骑"
+      },
+      {
+        "name": "BlackMage",
+        "value": 3,
+        "label": "黑魔"
+      },
+      {
+        "name": "DK",
+        "value": 4,
+        "label": "DK"
+      },
+      {
+        "name": "Gunbreaker",
+        "value": 5,
+        "label": "枪刃"
+      },
+      {
+        "name": "Machinist",
+        "value": 6,
+        "label": "机工"
+      },
+      {
+        "name": "Monk",
+        "value": 7,
+        "label": "武僧"
+      },
+      {
+        "name": "Ninja",
+        "value": 8,
+        "label": "忍者"
+      },
+      {
+        "name": "Paladin",
+        "value": 9,
+        "label": "骑士"
+      },
+      {
+        "name": "Reaper",
+        "value": 10,
+        "label": "镰刀"
+      },
+      {
+        "name": "Samurai",
+        "value": 11,
+        "label": "武士"
+      },
+      {
+        "name": "Summoner",
+        "value": 12,
+        "label": "召唤"
+      },
+      {
+        "name": "WhiteMage",
+        "value": 13,
+        "label": "白魔"
+      },
+      {
+        "name": "Warrior",
+        "value": 14,
+        "label": "战士"
+      },
+      {
+        "name": "Scholar",
+        "value": 15,
+        "label": "学者"
+      },
+      {
+        "name": "Sage",
+        "value": 16,
+        "label": "贤者"
+      },
+      {
+        "name": "RedMage",
+        "value": 17,
+        "label": "赤魔"
+      },
+      {
+        "name": "Pictomancer",
+        "value": 18,
+        "label": "画师"
+      },
+      {
+        "name": "Viper",
+        "value": 19,
+        "label": "蝰蛇"
+      },
+      {
+        "name": "Dancer",
+        "value": 20,
+        "label": "舞者"
+      }
+    ],
+    "Keys": [
+      {
+        "name": "KeyCode",
+        "value": 65535
+      },
+      {
+        "name": "Modifiers",
+        "value": -65536
+      },
+      {
+        "name": "None",
+        "value": 0
+      },
+      {
+        "name": "LButton",
+        "value": 1
+      },
+      {
+        "name": "RButton",
+        "value": 2
+      },
+      {
+        "name": "Cancel",
+        "value": 3
+      },
+      {
+        "name": "MButton",
+        "value": 4
+      },
+      {
+        "name": "XButton1",
+        "value": 5
+      },
+      {
+        "name": "XButton2",
+        "value": 6
+      },
+      {
+        "name": "Back",
+        "value": 8
+      },
+      {
+        "name": "Tab",
+        "value": 9
+      },
+      {
+        "name": "LineFeed",
+        "value": 10
+      },
+      {
+        "name": "Clear",
+        "value": 12
+      },
+      {
+        "name": "Return",
+        "value": 13
+      },
+      {
+        "name": "Enter",
+        "value": 13
+      },
+      {
+        "name": "ShiftKey",
+        "value": 16
+      },
+      {
+        "name": "ControlKey",
+        "value": 17
+      },
+      {
+        "name": "Menu",
+        "value": 18
+      },
+      {
+        "name": "Pause",
+        "value": 19
+      },
+      {
+        "name": "Capital",
+        "value": 20
+      },
+      {
+        "name": "CapsLock",
+        "value": 20
+      },
+      {
+        "name": "KanaMode",
+        "value": 21
+      },
+      {
+        "name": "HanguelMode",
+        "value": 21
+      },
+      {
+        "name": "HangulMode",
+        "value": 21
+      },
+      {
+        "name": "JunjaMode",
+        "value": 23
+      },
+      {
+        "name": "FinalMode",
+        "value": 24
+      },
+      {
+        "name": "HanjaMode",
+        "value": 25
+      },
+      {
+        "name": "KanjiMode",
+        "value": 25
+      },
+      {
+        "name": "Escape",
+        "value": 27
+      },
+      {
+        "name": "IMEConvert",
+        "value": 28
+      },
+      {
+        "name": "IMENonconvert",
+        "value": 29
+      },
+      {
+        "name": "IMEAccept",
+        "value": 30
+      },
+      {
+        "name": "IMEAceept",
+        "value": 30
+      },
+      {
+        "name": "IMEModeChange",
+        "value": 31
+      },
+      {
+        "name": "Space",
+        "value": 32
+      },
+      {
+        "name": "Prior",
+        "value": 33
+      },
+      {
+        "name": "PageUp",
+        "value": 33
+      },
+      {
+        "name": "Next",
+        "value": 34
+      },
+      {
+        "name": "PageDown",
+        "value": 34
+      },
+      {
+        "name": "End",
+        "value": 35
+      },
+      {
+        "name": "Home",
+        "value": 36
+      },
+      {
+        "name": "Left",
+        "value": 37
+      },
+      {
+        "name": "Up",
+        "value": 38
+      },
+      {
+        "name": "Right",
+        "value": 39
+      },
+      {
+        "name": "Down",
+        "value": 40
+      },
+      {
+        "name": "Select",
+        "value": 41
+      },
+      {
+        "name": "Print",
+        "value": 42
+      },
+      {
+        "name": "Execute",
+        "value": 43
+      },
+      {
+        "name": "Snapshot",
+        "value": 44
+      },
+      {
+        "name": "PrintScreen",
+        "value": 44
+      },
+      {
+        "name": "Insert",
+        "value": 45
+      },
+      {
+        "name": "Delete",
+        "value": 46
+      },
+      {
+        "name": "Help",
+        "value": 47
+      },
+      {
+        "name": "D0",
+        "value": 48
+      },
+      {
+        "name": "D1",
+        "value": 49
+      },
+      {
+        "name": "D2",
+        "value": 50
+      },
+      {
+        "name": "D3",
+        "value": 51
+      },
+      {
+        "name": "D4",
+        "value": 52
+      },
+      {
+        "name": "D5",
+        "value": 53
+      },
+      {
+        "name": "D6",
+        "value": 54
+      },
+      {
+        "name": "D7",
+        "value": 55
+      },
+      {
+        "name": "D8",
+        "value": 56
+      },
+      {
+        "name": "D9",
+        "value": 57
+      },
+      {
+        "name": "A",
+        "value": 65
+      },
+      {
+        "name": "B",
+        "value": 66
+      },
+      {
+        "name": "C",
+        "value": 67
+      },
+      {
+        "name": "D",
+        "value": 68
+      },
+      {
+        "name": "E",
+        "value": 69
+      },
+      {
+        "name": "F",
+        "value": 70
+      },
+      {
+        "name": "G",
+        "value": 71
+      },
+      {
+        "name": "H",
+        "value": 72
+      },
+      {
+        "name": "I",
+        "value": 73
+      },
+      {
+        "name": "J",
+        "value": 74
+      },
+      {
+        "name": "K",
+        "value": 75
+      },
+      {
+        "name": "L",
+        "value": 76
+      },
+      {
+        "name": "M",
+        "value": 77
+      },
+      {
+        "name": "N",
+        "value": 78
+      },
+      {
+        "name": "O",
+        "value": 79
+      },
+      {
+        "name": "P",
+        "value": 80
+      },
+      {
+        "name": "Q",
+        "value": 81
+      },
+      {
+        "name": "R",
+        "value": 82
+      },
+      {
+        "name": "S",
+        "value": 83
+      },
+      {
+        "name": "T",
+        "value": 84
+      },
+      {
+        "name": "U",
+        "value": 85
+      },
+      {
+        "name": "V",
+        "value": 86
+      },
+      {
+        "name": "W",
+        "value": 87
+      },
+      {
+        "name": "X",
+        "value": 88
+      },
+      {
+        "name": "Y",
+        "value": 89
+      },
+      {
+        "name": "Z",
+        "value": 90
+      },
+      {
+        "name": "LWin",
+        "value": 91
+      },
+      {
+        "name": "RWin",
+        "value": 92
+      },
+      {
+        "name": "Apps",
+        "value": 93
+      },
+      {
+        "name": "Sleep",
+        "value": 95
+      },
+      {
+        "name": "NumPad0",
+        "value": 96
+      },
+      {
+        "name": "NumPad1",
+        "value": 97
+      },
+      {
+        "name": "NumPad2",
+        "value": 98
+      },
+      {
+        "name": "NumPad3",
+        "value": 99
+      },
+      {
+        "name": "NumPad4",
+        "value": 100
+      },
+      {
+        "name": "NumPad5",
+        "value": 101
+      },
+      {
+        "name": "NumPad6",
+        "value": 102
+      },
+      {
+        "name": "NumPad7",
+        "value": 103
+      },
+      {
+        "name": "NumPad8",
+        "value": 104
+      },
+      {
+        "name": "NumPad9",
+        "value": 105
+      },
+      {
+        "name": "Multiply",
+        "value": 106
+      },
+      {
+        "name": "Add",
+        "value": 107
+      },
+      {
+        "name": "Separator",
+        "value": 108
+      },
+      {
+        "name": "Subtract",
+        "value": 109
+      },
+      {
+        "name": "Decimal",
+        "value": 110
+      },
+      {
+        "name": "Divide",
+        "value": 111
+      },
+      {
+        "name": "F1",
+        "value": 112
+      },
+      {
+        "name": "F2",
+        "value": 113
+      },
+      {
+        "name": "F3",
+        "value": 114
+      },
+      {
+        "name": "F4",
+        "value": 115
+      },
+      {
+        "name": "F5",
+        "value": 116
+      },
+      {
+        "name": "F6",
+        "value": 117
+      },
+      {
+        "name": "F7",
+        "value": 118
+      },
+      {
+        "name": "F8",
+        "value": 119
+      },
+      {
+        "name": "F9",
+        "value": 120
+      },
+      {
+        "name": "F10",
+        "value": 121
+      },
+      {
+        "name": "F11",
+        "value": 122
+      },
+      {
+        "name": "F12",
+        "value": 123
+      },
+      {
+        "name": "F13",
+        "value": 124
+      },
+      {
+        "name": "F14",
+        "value": 125
+      },
+      {
+        "name": "F15",
+        "value": 126
+      },
+      {
+        "name": "F16",
+        "value": 127
+      },
+      {
+        "name": "F17",
+        "value": 128
+      },
+      {
+        "name": "F18",
+        "value": 129
+      },
+      {
+        "name": "F19",
+        "value": 130
+      },
+      {
+        "name": "F20",
+        "value": 131
+      },
+      {
+        "name": "F21",
+        "value": 132
+      },
+      {
+        "name": "F22",
+        "value": 133
+      },
+      {
+        "name": "F23",
+        "value": 134
+      },
+      {
+        "name": "F24",
+        "value": 135
+      },
+      {
+        "name": "NumLock",
+        "value": 144
+      },
+      {
+        "name": "Scroll",
+        "value": 145
+      },
+      {
+        "name": "LShiftKey",
+        "value": 160
+      },
+      {
+        "name": "RShiftKey",
+        "value": 161
+      },
+      {
+        "name": "LControlKey",
+        "value": 162
+      },
+      {
+        "name": "RControlKey",
+        "value": 163
+      },
+      {
+        "name": "LMenu",
+        "value": 164
+      },
+      {
+        "name": "RMenu",
+        "value": 165
+      },
+      {
+        "name": "BrowserBack",
+        "value": 166
+      },
+      {
+        "name": "BrowserForward",
+        "value": 167
+      },
+      {
+        "name": "BrowserRefresh",
+        "value": 168
+      },
+      {
+        "name": "BrowserStop",
+        "value": 169
+      },
+      {
+        "name": "BrowserSearch",
+        "value": 170
+      },
+      {
+        "name": "BrowserFavorites",
+        "value": 171
+      },
+      {
+        "name": "BrowserHome",
+        "value": 172
+      },
+      {
+        "name": "VolumeMute",
+        "value": 173
+      },
+      {
+        "name": "VolumeDown",
+        "value": 174
+      },
+      {
+        "name": "VolumeUp",
+        "value": 175
+      },
+      {
+        "name": "MediaNextTrack",
+        "value": 176
+      },
+      {
+        "name": "MediaPreviousTrack",
+        "value": 177
+      },
+      {
+        "name": "MediaStop",
+        "value": 178
+      },
+      {
+        "name": "MediaPlayPause",
+        "value": 179
+      },
+      {
+        "name": "LaunchMail",
+        "value": 180
+      },
+      {
+        "name": "SelectMedia",
+        "value": 181
+      },
+      {
+        "name": "LaunchApplication1",
+        "value": 182
+      },
+      {
+        "name": "LaunchApplication2",
+        "value": 183
+      },
+      {
+        "name": "OemSemicolon",
+        "value": 186
+      },
+      {
+        "name": "Oem1",
+        "value": 186
+      },
+      {
+        "name": "Oemplus",
+        "value": 187
+      },
+      {
+        "name": "Oemcomma",
+        "value": 188
+      },
+      {
+        "name": "OemMinus",
+        "value": 189
+      },
+      {
+        "name": "OemPeriod",
+        "value": 190
+      },
+      {
+        "name": "OemQuestion",
+        "value": 191
+      },
+      {
+        "name": "Oem2",
+        "value": 191
+      },
+      {
+        "name": "Oemtilde",
+        "value": 192
+      },
+      {
+        "name": "Oem3",
+        "value": 192
+      },
+      {
+        "name": "OemOpenBrackets",
+        "value": 219
+      },
+      {
+        "name": "Oem4",
+        "value": 219
+      },
+      {
+        "name": "OemPipe",
+        "value": 220
+      },
+      {
+        "name": "Oem5",
+        "value": 220
+      },
+      {
+        "name": "OemCloseBrackets",
+        "value": 221
+      },
+      {
+        "name": "Oem6",
+        "value": 221
+      },
+      {
+        "name": "OemQuotes",
+        "value": 222
+      },
+      {
+        "name": "Oem7",
+        "value": 222
+      },
+      {
+        "name": "Oem8",
+        "value": 223
+      },
+      {
+        "name": "OemBackslash",
+        "value": 226
+      },
+      {
+        "name": "Oem102",
+        "value": 226
+      },
+      {
+        "name": "ProcessKey",
+        "value": 229
+      },
+      {
+        "name": "Packet",
+        "value": 231
+      },
+      {
+        "name": "Attn",
+        "value": 246
+      },
+      {
+        "name": "Crsel",
+        "value": 247
+      },
+      {
+        "name": "Exsel",
+        "value": 248
+      },
+      {
+        "name": "EraseEof",
+        "value": 249
+      },
+      {
+        "name": "Play",
+        "value": 250
+      },
+      {
+        "name": "Zoom",
+        "value": 251
+      },
+      {
+        "name": "NoName",
+        "value": 252
+      },
+      {
+        "name": "Pa1",
+        "value": 253
+      },
+      {
+        "name": "OemClear",
+        "value": 254
+      },
+      {
+        "name": "Gamepad_Offset",
+        "value": 65536
+      },
+      {
+        "name": "Gamepad_DPadUp",
+        "value": 65537
+      },
+      {
+        "name": "Gamepad_DPadDown",
+        "value": 65538
+      },
+      {
+        "name": "Gamepad_DPadLeft",
+        "value": 65539
+      },
+      {
+        "name": "Gamepad_DPadRight",
+        "value": 65540
+      },
+      {
+        "name": "Gamepad_Start",
+        "value": 65541
+      },
+      {
+        "name": "Gamepad_Back",
+        "value": 65542
+      },
+      {
+        "name": "Gamepad_L3",
+        "value": 65543
+      },
+      {
+        "name": "Gamepad_R3",
+        "value": 65544
+      },
+      {
+        "name": "Gamepad_L1",
+        "value": 65545
+      },
+      {
+        "name": "Gamepad_R1",
+        "value": 65546
+      },
+      {
+        "name": "Gamepad_L2",
+        "value": 65547
+      },
+      {
+        "name": "Gamepad_R2",
+        "value": 65548
+      },
+      {
+        "name": "Gamepad_Triangle",
+        "value": 65549
+      },
+      {
+        "name": "Gamepad_Cross",
+        "value": 65550
+      },
+      {
+        "name": "Gamepad_Circle",
+        "value": 65551
+      },
+      {
+        "name": "Gamepad_Square",
+        "value": 65552
+      },
+      {
+        "name": "Shift",
+        "value": 65536
+      },
+      {
+        "name": "Control",
+        "value": 131072
+      },
+      {
+        "name": "Alt",
+        "value": 262144
+      }
+    ],
+    "ReceiveAbilityLimitType": [
+      {
+        "name": "None",
+        "value": 0
+      },
+      {
+        "name": "TargetIsMe",
+        "value": 1
+      },
+      {
+        "name": "TargetIsOther",
+        "value": 2
+      }
+    ],
+    "RotationType": [
+      {
+        "name": "Face2Target",
+        "value": 0
+      },
+      {
+        "name": "Back2Target",
+        "value": 1
+      },
+      {
+        "name": "Custom",
+        "value": 2
+      }
+    ],
+    "SimplePointSelectType": [
+      {
+        "name": "FixedPoint",
+        "value": 0
+      },
+      {
+        "name": "SelfPos",
+        "value": 1
+      },
+      {
+        "name": "BossPos",
+        "value": 2
+      },
+      {
+        "name": "MapMarker",
+        "value": 3
+      },
+      {
+        "name": "HeadMarker",
+        "value": 4
+      },
+      {
+        "name": "PartyMember",
+        "value": 5
+      }
+    ],
+    "SndFilterType": [
+      {
+        "name": "None",
+        "value": 0,
+        "label": "无"
+      },
+      {
+        "name": "Nearest",
+        "value": 1,
+        "label": "最近距离"
+      },
+      {
+        "name": "MinHP",
+        "value": 2,
+        "label": "最低当前HP"
+      },
+      {
+        "name": "MaxHP",
+        "value": 3,
+        "label": "最高当前HP"
+      }
+    ],
+    "SpellCategory": [
+      {
+        "name": "Default",
+        "value": 0,
+        "label": "默认"
+      },
+      {
+        "name": "LimitBreak",
+        "value": 1,
+        "label": "LB"
+      },
+      {
+        "name": "Potion",
+        "value": 2,
+        "label": "爆发药"
+      },
+      {
+        "name": "Sprint",
+        "value": 3,
+        "label": "疾跑"
+      },
+      {
+        "name": "Dance",
+        "value": 4,
+        "label": "跳舞(舞者)"
+      },
+      {
+        "name": "Item",
+        "value": 5,
+        "label": "道具"
+      }
+    ],
+    "SpellTargetLimit_HPType": [
+      {
+        "name": "None",
+        "value": 0
+      },
+      {
+        "name": "Lowest",
+        "value": 1
+      },
+      {
+        "name": "Largest",
+        "value": 2
+      }
+    ],
+    "SpellTargetLimit_JobType": [
+      {
+        "name": "Any",
+        "value": 0
+      },
+      {
+        "name": "T",
+        "value": 1
+      },
+      {
+        "name": "H",
+        "value": 2
+      },
+      {
+        "name": "DPS",
+        "value": 3
+      }
+    ],
+    "SpellTargetType": [
+      {
+        "name": "Target",
+        "value": 0,
+        "label": "当前目标"
+      },
+      {
+        "name": "Self",
+        "value": 1,
+        "label": "自己"
+      },
+      {
+        "name": "TargetTarget",
+        "value": 2,
+        "label": "当前目标的目标(tt)"
+      },
+      {
+        "name": "Pm1",
+        "value": 3,
+        "label": "小队列表1"
+      },
+      {
+        "name": "Pm2",
+        "value": 4,
+        "label": "小队列表2"
+      },
+      {
+        "name": "Pm3",
+        "value": 5,
+        "label": "小队列表3"
+      },
+      {
+        "name": "Pm4",
+        "value": 6,
+        "label": "小队列表4"
+      },
+      {
+        "name": "Pm5",
+        "value": 7,
+        "label": "小队列表5"
+      },
+      {
+        "name": "Pm6",
+        "value": 8,
+        "label": "小队列表6"
+      },
+      {
+        "name": "Pm7",
+        "value": 9,
+        "label": "小队列表7"
+      },
+      {
+        "name": "Pm8",
+        "value": 10,
+        "label": "小队列表8"
+      },
+      {
+        "name": "SpecifyTarget",
+        "value": 100,
+        "label": "特殊目标(需要id)",
+        "doc": "指定单位"
+      },
+      {
+        "name": "Location",
+        "value": 101,
+        "label": "地点",
+        "doc": "在场地中指定地点"
+      },
+      {
+        "name": "DynamicTarget",
+        "value": 102,
+        "label": "动态目标",
+        "doc": "动态目标Spell，在释放时再计算目标"
+      },
+      {
+        "name": "MapCenter",
+        "value": 103,
+        "label": "场地中心(高难大部分场景有效)",
+        "doc": "场地中心"
+      }
+    ],
+    "TargetType": [
+      {
+        "name": "Self",
+        "value": 0,
+        "label": "限定为自己"
+      },
+      {
+        "name": "Target",
+        "value": 1,
+        "label": "限定为当前选中目标"
+      },
+      {
+        "name": "TargetTarget",
+        "value": 2,
+        "label": "限定为当前选中目标的目标(tt)"
+      },
+      {
+        "name": "PartyMember",
+        "value": 3,
+        "label": "从队友中过滤"
+      },
+      {
+        "name": "Enemy",
+        "value": 4,
+        "label": "从周围单位中过滤"
+      }
+    ],
+    "WayMark": [
+      {
+        "name": "A",
+        "value": 0
+      },
+      {
+        "name": "B",
+        "value": 1
+      },
+      {
+        "name": "C",
+        "value": 2
+      },
+      {
+        "name": "D",
+        "value": 3
+      },
+      {
+        "name": "One",
+        "value": 4
+      },
+      {
+        "name": "Two",
+        "value": 5
+      },
+      {
+        "name": "Three",
+        "value": 6
+      },
+      {
+        "name": "Four",
+        "value": 7
+      }
+    ],
+    "麻将": [
+      {
+        "name": "一麻",
+        "value": 0
+      },
+      {
+        "name": "二麻",
+        "value": 1
+      },
+      {
+        "name": "三麻",
+        "value": 2
+      },
+      {
+        "name": "四麻",
+        "value": 3
+      }
+    ]
+  },
+  "complexTypes": {
+    "SimplePointSelector": {
+      "type": "AEAssist.CombatRoutine.SimplePointSelector, AEAssist",
+      "shortName": "SimplePointSelector",
+      "fields": [
+        {
+          "name": "SelectType",
+          "type": "enum:SimplePointSelectType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "FixedPoint",
+          "type": "Vector3",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "HeadMarker",
+          "type": "enum:HeadMarker",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "MapMarker",
+          "type": "enum:WayMark",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "PartyMember",
+          "type": "enum:SpellTargetType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "RelatePos",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "RelatedExDis",
+          "type": "float",
+          "default": "1f",
+          "member": "field"
+        },
+        {
+          "name": "RelatedRot",
+          "type": "float",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Args0",
+          "type": "uint",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "RecentTime",
+          "type": "float",
+          "default": "1f",
+          "member": "field"
+        }
+      ]
+    },
+    "SpellConfig": {
+      "type": "AEAssist.CombatRoutine.Trigger.Define.SpellConfig, AEAssist",
+      "shortName": "SpellConfig",
+      "fields": [
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "field"
+        },
+        {
+          "name": "Category",
+          "type": "enum:SpellCategory",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "SpellId",
+          "type": "uint",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CoolDowncheck",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CoolDowncheck_time",
+          "type": "float",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "TargetType",
+          "type": "enum:SpellTargetType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "IsPartyMember",
+          "type": "bool",
+          "default": "true",
+          "member": "field"
+        },
+        {
+          "name": "LimitJobType",
+          "type": "enum:SpellTargetLimit_JobType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "LimitBuffIds",
+          "type": "List<uint>",
+          "default": "new List<uint>()",
+          "member": "field"
+        },
+        {
+          "name": "LimitMaxHpType",
+          "type": "enum:SpellTargetLimit_HPType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "LimitHpType",
+          "type": "enum:SpellTargetLimit_HPType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Location",
+          "type": "Vector3",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "TargetSelector",
+          "type": "TargetSelector",
+          "default": "new TargetSelector()",
+          "member": "field"
+        },
+        {
+          "name": "AutoCheckActionChange",
+          "type": "bool",
+          "default": "true",
+          "member": "field"
+        }
+      ]
+    },
+    "TargetSelector": {
+      "type": "AEAssist.CombatRoutine.Trigger.Define.TargetSelector, AEAssist",
+      "shortName": "TargetSelector",
+      "fields": [
+        {
+          "name": "Enable",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Target",
+          "type": "enum:TargetType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "FilterDatas",
+          "type": "List<FilterData>",
+          "default": "new List<FilterData>()",
+          "member": "field"
+        },
+        {
+          "name": "NeedTargetable",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "SndFilter",
+          "type": "enum:SndFilterType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "PMIndex",
+          "type": "int",
+          "default": "",
+          "member": "field"
+        }
+      ]
+    },
+    "FilterData": {
+      "type": "AEAssist.CombatRoutine.Trigger.Define.FilterData, AEAssist",
+      "shortName": "FilterData",
+      "fields": [
+        {
+          "name": "Filter",
+          "type": "enum:FilterType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Remark",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "field"
+        },
+        {
+          "name": "StrParam1",
+          "type": "string",
+          "default": "string.Empty",
+          "member": "field"
+        },
+        {
+          "name": "UintParam1",
+          "type": "int",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "FloatParam1",
+          "type": "float",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "LeftTime",
+          "type": "int",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "JobsCategory",
+          "type": "enum:JobsCategoryType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Jobs",
+          "type": "enum:JobsType",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "CompareType",
+          "type": "enum:CompareType",
+          "default": "CompareType.LessEqual",
+          "member": "field"
+        },
+        {
+          "name": "BuffCompareType",
+          "type": "enum:CompareType",
+          "default": "CompareType.GreaterEqual",
+          "member": "field"
+        },
+        {
+          "name": "Marker",
+          "type": "enum:HeadMarker",
+          "default": "",
+          "member": "field"
+        },
+        {
+          "name": "Nearest",
+          "type": "bool",
+          "default": "",
+          "member": "field"
+        }
+      ]
+    }
+  }
+}
