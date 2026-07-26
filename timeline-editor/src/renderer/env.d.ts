@@ -37,6 +37,14 @@ interface ElectronAPI {
   selectAeDirectory(): Promise<{ cancelled: boolean; directory?: string }>
   getAcrDir(): Promise<string>
   onAeDirectoryChanged(callback: (newDir: string) => void): () => void
+
+  // PromeRotation (PureTimeline)
+  getPrDirectory(): Promise<string>
+  selectPrDirectory(): Promise<{ cancelled: boolean; directory?: string }>
+  openPrFileDialog(): Promise<ElectronDialogResult>
+  savePrFileDialog(defaultName?: string): Promise<ElectronDialogResult>
+  onPrDirectoryChanged(callback: (newDir: string) => void): () => void
+
   discoverAcrTypes(): Promise<{
     success: boolean
     error?: string

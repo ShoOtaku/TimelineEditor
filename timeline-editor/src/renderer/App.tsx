@@ -34,6 +34,10 @@ import { AcrViewerPanel } from './panels/AcrViewerPanel'
 import { StatusBar } from './components/StatusBar'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { useStore } from './store'
+import { usePrStore } from './store/prStore'
+import { PrSidebar } from './pr/PrSidebar'
+import { PrTimelineView } from './pr/PrTimelineView'
+import { PrPropertyPanel } from './pr/PrPropertyPanel'
 
 export default function App() {
   const fileName = useStore(s => s.fileName)
@@ -43,6 +47,14 @@ export default function App() {
   const saveFile = useStore(s => s.saveFile)
   const loadSpellLookup = useStore(s => s.loadSpellLookup)
   const loadAcrTypes = useStore(s => s.loadAcrTypes)
+  const editorMode = usePrStore(s => s.editorMode)
+  const setEditorMode = usePrStore(s => s.setEditorMode)
+  const prFileName = usePrStore(s => s.fileName)
+  const prFilePath = usePrStore(s => s.filePath)
+  const prIsDirty = usePrStore(s => s.isDirty)
+  const prLoadFile = usePrStore(s => s.loadFile)
+  const prSaveFile = usePrStore(s => s.saveFile)
+  const prNewDocument = usePrStore(s => s.newDocument)
   const [showScript, setShowScript] = useState(false)
   const [showAcrViewer, setShowAcrViewer] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(240)
@@ -54,15 +66,36 @@ export default function App() {
   const isResizingPanel = useRef(false)
   const isResizingScript = useRef(false)
 
+  const isPr = editorMode === 'pr'
+
   const handleOpen = useCallback(async () => {
+    if (isPr) {
+      const result = await window.electronAPI.openPrFileDialog()
+      if (!result.cancelled && result.filePath) {
+        const ok = await prLoadFile(result.filePath)
+        if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
+      }
+      return
+    }
     const result = await window.electronAPI.openFileDialog()
     if (!result.cancelled && result.filePath) {
       await loadFile(result.filePath)
       document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
     }
-  }, [loadFile])
+  }, [isPr, loadFile, prLoadFile])
 
   const handleSave = useCallback(async () => {
+    if (isPr) {
+      if (prFilePath) {
+        await prSaveFile(prFilePath)
+      } else {
+        const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
+        if (!result.cancelled && result.filePath) {
+          await prSaveFile(result.filePath)
+        }
+      }
+      return
+    }
     if (filePath) {
       await saveFile(filePath)
     } else {
@@ -71,14 +104,27 @@ export default function App() {
         await saveFile(result.filePath)
       }
     }
-  }, [filePath, fileName, saveFile])
+  }, [isPr, filePath, fileName, saveFile, prFilePath, prFileName, prSaveFile])
 
   const handleSaveAs = useCallback(async () => {
+    if (isPr) {
+      const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
+      if (!result.cancelled && result.filePath) {
+        await prSaveFile(result.filePath)
+      }
+      return
+    }
     const result = await window.electronAPI.saveFileDialog(fileName || 'NewTriggerline.json')
     if (!result.cancelled && result.filePath) {
       await saveFile(result.filePath)
     }
-  }, [fileName, saveFile])
+  }, [isPr, fileName, saveFile, prFileName, prSaveFile])
+
+  const handleNewPr = useCallback(() => {
+    const name = window.prompt('新时间轴名称：', '新时间轴')
+    if (name === null) return
+    prNewDocument(name.trim() || '新时间轴')
+  }, [prNewDocument])
 
   // Listen for custom events from keyboard shortcuts
   useEffect(() => {
@@ -126,6 +172,8 @@ export default function App() {
     <ErrorBoundary>
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-900">
       <Toolbar
+        mode={editorMode}
+        onToggleMode={() => setEditorMode(isPr ? 'ae' : 'pr')}
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
@@ -133,15 +181,16 @@ export default function App() {
         showScript={showScript}
         onToggleAcrViewer={() => setShowAcrViewer(s => !s)}
         showAcrViewer={showAcrViewer}
-        fileName={fileName}
-        isDirty={isDirty}
+        onNewPr={handleNewPr}
+        fileName={isPr ? prFileName : fileName}
+        isDirty={isPr ? prIsDirty : isDirty}
         updateAvailable={updateAvailable}
         onCheckUpdate={handleCheckUpdate}
       />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div style={{ width: sidebarWidth }} className="flex-shrink-0 border-r border-gray-700 overflow-hidden">
-          <Sidebar />
+          {isPr ? <PrSidebar /> : <Sidebar />}
         </div>
 
         {/* Resizer: sidebar | canvas */}
@@ -160,10 +209,10 @@ export default function App() {
         {/* Canvas + Script area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
-            <TreeView />
+            {isPr ? <PrTimelineView /> : <TreeView />}
           </div>
 
-          {showScript && (
+          {!isPr && showScript && (
             <>
               <div
                 className="h-1 bg-gray-700 hover:bg-blue-500 cursor-row-resize flex-shrink-0 transition-colors"
@@ -198,7 +247,7 @@ export default function App() {
 
         {/* Property Panel / ACR Viewer */}
         <div style={{ width: panelWidth }} className="flex-shrink-0 border-l border-gray-700 overflow-hidden">
-          {showAcrViewer ? <AcrViewerPanel /> : <PropertyPanel />}
+          {isPr ? <PrPropertyPanel /> : showAcrViewer ? <AcrViewerPanel /> : <PropertyPanel />}
         </div>
       </div>
       <StatusBar />

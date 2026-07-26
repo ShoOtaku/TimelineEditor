@@ -1,6 +1,9 @@
 # Timeline Editor
 
-FFXIV AEAssist 时间轴（Triggerline）外部编辑器。读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt` 时间轴文件，提供树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR（Advanced Combat Routine）插件 DLL 中的条件/动作类型。
+FFXIV 时间轴外部编辑器，支持两种格式（工具栏左上按钮切换）：
+
+1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑锚点同步规则/行为组/节点/条件/动作。
 
 ## 项目结构
 
@@ -19,7 +22,8 @@ timeline-editor/
 │   ├── preload/
 │   │   └── preload.ts          # Context bridge — 暴露 window.electronAPI（16 通道）
 │   ├── shared/
-│   │   └── types.ts            # 完整 TS 类型系统（10 节点类型 + ACR TypeDef）
+│   │   ├── types.ts            # AE 完整 TS 类型系统（10 节点类型 + ACR TypeDef）
+│   │   └── prTypes.ts          # PR (PureTimeline) 类型系统 + 全部枚举常量（源自 PromeRotation.dll 反编译）
 │   ├── plugins/
 │   │   └── index.ts            # PluginRegistry 单例（预留扩展框架）
 │   └── renderer/
@@ -28,7 +32,21 @@ timeline-editor/
 │       ├── env.d.ts            # window.electronAPI 类型声明
 │       ├── index.css           # TailwindCSS + 暗色主题 + 自定义 .field-input .field-input
 │       ├── store/
-│       │   └── index.ts        # Zustand + Immer — 文档/undo/ACR 类型注册表
+│       │   ├── index.ts        # Zustand + Immer — AE 文档/undo/ACR 类型注册表
+│       │   └── prStore.ts      # Zustand + Immer — PR 文档/选中/undo + editorMode（AE/PR 全局切换）
+│       ├── pr/                 # PromeRotation 编辑器
+│       │   ├── prModel.ts      # 工厂/校验（移植 PtlDefinition 规则）/时间格式化/树辅助
+│       │   ├── prMutations.ts  # 纯文档变更函数（锚点/行为组/节点 CRUD）
+│       │   ├── PrSidebar.tsx   # PureTimelines 目录浏览器
+│       │   ├── PrTimelineView.tsx # 中心视图：锚点行 + 行为组行 + 校验条 + 搜索
+│       │   ├── PrNodeTree.tsx  # 行为组展开后的节点树（增/删/移/复制 + 类型菜单）
+│       │   ├── PrPropertyPanel.tsx # 右侧面板分发 + Meta 编辑
+│       │   ├── PrAnchorEditor.tsx  # 锚点 + 同步规则编辑
+│       │   ├── PrEntryEditor.tsx   # 行为组编辑（锚点绑定 + 偏移范围提示）
+│       │   ├── PrNodeEditor.tsx    # 节点编辑（serial/parallel/condition/action/branch/delay）
+│       │   ├── PrConditionEditor.tsx # 条件编辑（14 种类型化 + 全字段回退）
+│       │   ├── PrActionEditor.tsx    # 动作编辑（17 内置 + 3 XSZBox IPC + 全字段回退）
+│       │   └── prFields.tsx    # 共享字段组件（PrField/PrCheckbox/技能名提示）
 │       ├── components/
 │       │   ├── TreeView.tsx    # 可展开树列表
 │       │   ├── Toolbar.tsx     # 工具栏 — Open/Save/Undo/Redo/Script/⚙设置
@@ -103,6 +121,30 @@ npm run dist      # 打包为 .exe（→ release/Timeline Editor 1.0.0.exe）
 
 见 `PropertyPanel.tsx` 中 `BUILTIN_COND_TYPES` 和 `BUILTIN_ACTION_TYPES`。
 
+## PR (PromeRotation PureTimeline) 数据模型
+
+Schema 来源：`ilspycmd` 反编译 `installedPlugins/PromeRotation/{ver}/PromeRotation.dll`（字符串被混淆，但 DTO 属性名/枚举成员名可读）。关键命名空间：`PromeRotation.PureTimeline.Serialization`（PtlDto/AnchorDto/SyncRuleDto/EntryDto）、`PromeRotation.Timeline.Core`（NodeDto/ConditionDto/ActionDto）。
+
+```
+PtlDocument { Version=1, Meta{Name,TerritoryId,JobId,Author,AcrAuthor,CreatedAt,Opener,Remark},
+  Variables[], Anchors[], Entries[] }
+Anchor { Guid, Name, Time(秒), IsPhaseAnchor, IsEndAnchor, IsCommentAnchor, IsTechnicalAnchor,
+  Enabled, Remark, Sync?{ Type, Params{ActionId?,Regex?}, MatchTime?, JumpTargetTime?,
+  IsForceJump, WindowBefore, WindowAfter } }
+Entry { Guid, Name, StartAnchorGuid, Offset(秒), Enabled, Remark, EntryGroup: Node }
+Node { Id, Name, Type: serial|parallel|condition|action|branch|delay, Enabled, Remark,
+  DelayMs?, Mode?('wait'), UseAndLogic?, Condition?/Conditions?, Action?/Actions?, Children?, Script? }
+```
+
+- **SyncType 枚举**：None/InCombat/CastStart/ActionEffect/Countdown/Weather/ChatLog/ActorControl/AddedCombatant/NpcYell/Lua/Manual（JSON 序列化为字符串）
+- **SkillType**（ActionDto.SkillType）= `PromeRotation.Data.ActionType`: Gcd/OffGcd/Always/Item/LimitBreak
+- **Target**（ActionDto.Target）= `PromeRotation.Data.ActionTargetType`: Self/Target/TargetOfTarget/FocusTarget/MouseOver/LowestHealthPartyMember/PartyMember2-8
+- **条件/动作类型键** = 实现类名去掉 Condition/Action 后缀（如 `SkillCooldownCondition` → `"SkillCooldown"`），另有 XSZBox 通过 IPC 注册的 `xszbox.pr.*` 动作（字段走 Params 字典）
+- **校验规则**（PtlDefinition.BuildSegments，已移植到 `prModel.ts::validatePtlDocument`）：功能锚点（非注释/技术）≥2；首个功能锚点 Time=0 且 Sync=InCombat；时间严格递增（ε=0.0001）；最后一个功能锚点必须是唯一 End 锚点；End 与 Phase 互斥；Entry 必须绑定非 End 功能锚点且 Offset ∈ [0, 下一锚点时间差)
+- **运行时默认**：WindowBefore/After 均 ≤0 时取 ±2.5s（普通）/±10s（阶段锚点）；MatchTime/JumpTargetTime 为 null 时取锚点时间
+- **PR 目录**：默认 `%APPDATA%/XIVLauncherCN/pluginConfigs/PromeRotation/PureTimelines`，持久化在 ae-config.json 的 `prDirectory` 键
+- **技能名提示**：复用 `data/actions.json`（仅玩家技能）。Boss 技能 ID（锚点同步用）查不到名称时回退显示 ID；如需补全需启动 EXDViewerCN 后扩展 `export_actions.py` 导出全量 Action 表
+
 ### ACR 类型发现
 
 **两阶段自动发现**（`acr:discoverTypes` IPC）：
@@ -154,16 +196,21 @@ interface AcrTypeDef {
 
 `loadFile(path)` → IPC `file:read` → `JSON.parse` → 写入 Zustand store。加载时清空 undo/redo。
 
-### IPC 通道（16 个）
+### IPC 通道（20 个）
 
 `file:read` `file:write` `file:exists` `file:stat` `file:listDir` |
 `dialog:openFile` `dialog:saveFile` `dialog:selectAeDirectory` |
 `app:getDefaultDir` `app:getBackupDir` `app:loadSpellData` |
-`app:getAeDirectory` `app:getAcrDir` | `acr:listDlls` `acr:discoverTypes`
+`app:getAeDirectory` `app:getAcrDir` | `acr:listDlls` `acr:discoverTypes` |
+`app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile`
 
 ### Preload 事件监听
 
-`onAeDirectoryChanged(cb)` 和 `onAcrTypesChanged(cb)` 通过 `ipcRenderer.on` + 返回 unsubscribe 函数实现。
+`onAeDirectoryChanged(cb)`、`onPrDirectoryChanged(cb)` 和 `onAcrTypesChanged(cb)` 通过 `ipcRenderer.on` + 返回 unsubscribe 函数实现。
+
+### 开发调试
+
+dev 模式下主进程开启 `remote-debugging-port=9222`（`app.isPackaged` 判断，打包版不开），可用 CDP 直接驱动运行中的应用做自动化验证。
 
 ## MCP 工具
 

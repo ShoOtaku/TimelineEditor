@@ -67,6 +67,21 @@ const api = {
     return () => ipcRenderer.removeListener('ae:directoryChanged', handler)
   },
 
+  // PromeRotation (PureTimeline)
+  getPrDirectory: (): Promise<string> =>
+    ipcRenderer.invoke('app:getPrDir'),
+  selectPrDirectory: (): Promise<{ cancelled: boolean; directory?: string }> =>
+    ipcRenderer.invoke('dialog:selectPrDirectory'),
+  openPrFileDialog: (): Promise<DialogResult> =>
+    ipcRenderer.invoke('dialog:openPrFile'),
+  savePrFileDialog: (defaultName?: string): Promise<DialogResult> =>
+    ipcRenderer.invoke('dialog:savePrFile', defaultName),
+  onPrDirectoryChanged: (callback: (newDir: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, newDir: string) => callback(newDir)
+    ipcRenderer.on('pr:directoryChanged', handler)
+    return () => ipcRenderer.removeListener('pr:directoryChanged', handler)
+  },
+
   // ACR types
   discoverAcrTypes: (): Promise<{
     success: boolean

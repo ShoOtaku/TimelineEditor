@@ -8,6 +8,11 @@ import { installUpdate, cleanupLeftoverFiles } from './installer'
 
 let mainWindow: BrowserWindow | null = null
 
+// Dev-only: expose CDP endpoint for external debugging/automation
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222')
+}
+
 // --- AE Directory Configuration ---
 
 const DEFAULT_AE_DIR = join(
@@ -17,9 +22,18 @@ const DEFAULT_AE_DIR = join(
   'AE'
 )
 
+const DEFAULT_PR_DIR = join(
+  app.getPath('appData'),
+  'XIVLauncherCN',
+  'pluginConfigs',
+  'PromeRotation',
+  'PureTimelines'
+)
+
 const CONFIG_PATH = join(app.getPath('userData'), 'ae-config.json')
 
 let aeDirectory: string = DEFAULT_AE_DIR
+let prDirectory: string = DEFAULT_PR_DIR
 
 function getTriggerlinesDir(): string {
   return join(aeDirectory, 'Triggerlines')
@@ -38,6 +52,10 @@ async function loadAeConfig(): Promise<void> {
         aeDirectory = cfg.aeDirectory
         console.log('Loaded AE directory from config:', aeDirectory)
       }
+      if (cfg.prDirectory && typeof cfg.prDirectory === 'string') {
+        prDirectory = cfg.prDirectory
+        console.log('Loaded PR directory from config:', prDirectory)
+      }
     }
   } catch (err) {
     console.warn('Failed to load AE config, using default:', err)
@@ -50,8 +68,8 @@ async function saveAeConfig(): Promise<void> {
     if (!existsSync(dir)) {
       await mkdir(dir, { recursive: true })
     }
-    await writeFile(CONFIG_PATH, JSON.stringify({ aeDirectory }, null, 2), 'utf-8')
-    console.log('Saved AE directory to config:', aeDirectory)
+    await writeFile(CONFIG_PATH, JSON.stringify({ aeDirectory, prDirectory }, null, 2), 'utf-8')
+    console.log('Saved directories to config:', aeDirectory, prDirectory)
   } catch (err) {
     console.error('Failed to save AE config:', err)
   }
@@ -216,6 +234,67 @@ ipcMain.handle('dialog:selectAeDirectory', async () => {
 // App: get ACR directory
 ipcMain.handle('app:getAcrDir', async () => {
   return getAcrDir()
+})
+
+// --- PromeRotation (PureTimeline) ---
+
+// App: get PromeRotation PureTimelines directory
+ipcMain.handle('app:getPrDir', async () => {
+  return prDirectory
+})
+
+// Dialog: select PromeRotation PureTimelines directory
+ipcMain.handle('dialog:selectPrDirectory', async () => {
+  if (!mainWindow) return { cancelled: true }
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择 PromeRotation 时间轴目录 (PureTimelines)',
+    defaultPath: prDirectory,
+    properties: ['openDirectory']
+  })
+  if (result.canceled || !result.filePaths[0]) {
+    return { cancelled: true }
+  }
+  prDirectory = result.filePaths[0]
+  await saveAeConfig()
+  BrowserWindow.getAllWindows().forEach(w => {
+    w.webContents.send('pr:directoryChanged', prDirectory)
+  })
+  return { cancelled: false, directory: prDirectory }
+})
+
+// Dialog: open PromeRotation timeline file
+ipcMain.handle('dialog:openPrFile', async () => {
+  if (!mainWindow) return { cancelled: true }
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '打开 PromeRotation 时间轴',
+    defaultPath: prDirectory,
+    filters: [
+      { name: 'PromeRotation Timeline', extensions: ['json'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  })
+  return {
+    cancelled: result.canceled,
+    filePath: result.filePaths[0] || null
+  }
+})
+
+// Dialog: save PromeRotation timeline file
+ipcMain.handle('dialog:savePrFile', async (_event, defaultName?: string) => {
+  if (!mainWindow) return { cancelled: true }
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: '保存 PromeRotation 时间轴',
+    defaultPath: join(prDirectory, defaultName || 'NewTimeline.json'),
+    filters: [
+      { name: 'PromeRotation Timeline', extensions: ['json'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  })
+  return {
+    cancelled: result.canceled,
+    filePath: result.filePath || null
+  }
 })
 
 // ACR: list DLLs in ACR directory

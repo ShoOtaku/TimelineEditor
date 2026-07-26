@@ -1,4 +1,8 @@
+import type { EditorMode } from '../store/prStore'
+
 interface ToolbarProps {
+  mode: EditorMode
+  onToggleMode: () => void
   onOpen: () => void
   onSave: () => void
   onSaveAs: () => void
@@ -6,13 +10,19 @@ interface ToolbarProps {
   showScript: boolean
   onToggleAcrViewer: () => void
   showAcrViewer: boolean
+  onNewPr: () => void
   fileName: string | null
   isDirty: boolean
   updateAvailable?: boolean
   onCheckUpdate?: () => void
 }
 
-export function Toolbar({ onOpen, onSave, onSaveAs, onToggleScript, showScript, onToggleAcrViewer, showAcrViewer, fileName, isDirty, updateAvailable, onCheckUpdate }: ToolbarProps) {
+export function Toolbar({
+  mode, onToggleMode, onOpen, onSave, onSaveAs, onToggleScript, showScript,
+  onToggleAcrViewer, showAcrViewer, onNewPr, fileName, isDirty, updateAvailable, onCheckUpdate
+}: ToolbarProps) {
+  const isPr = mode === 'pr'
+
   const handleSelectAeDir = async () => {
     const result = await window.electronAPI.selectAeDirectory()
     if (!result.cancelled) {
@@ -20,9 +30,36 @@ export function Toolbar({ onOpen, onSave, onSaveAs, onToggleScript, showScript, 
     }
   }
 
+  const handleSelectPrDir = async () => {
+    const result = await window.electronAPI.selectPrDirectory()
+    if (!result.cancelled) {
+      console.log('PR directory changed to:', result.directory)
+    }
+  }
+
   return (
     <div className="h-10 bg-gray-800 border-b border-gray-700 flex items-center px-3 gap-1 select-none flex-shrink-0">
+      {/* Mode switch */}
+      <button
+        onClick={onToggleMode}
+        className={`px-3 py-1 text-sm rounded font-semibold transition-colors ${
+          isPr
+            ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
+            : 'bg-indigo-700 hover:bg-indigo-600 text-white'
+        }`}
+        title={isPr ? '当前：PromeRotation 时间轴，点击切换到 AE 时间轴' : '当前：AE 时间轴，点击切换到 PromeRotation 时间轴'}
+      >
+        {isPr ? '⏱ PR 时间轴' : '🌲 AE 时间轴'}
+      </button>
+
+      <div className="w-px h-5 bg-gray-600 mx-1" />
+
       {/* File operations */}
+      {isPr && (
+        <button onClick={onNewPr} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="新建 PR 时间轴">
+          ✚ 新建
+        </button>
+      )}
       <button onClick={onOpen} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Open (Ctrl+O)">
         📂 Open
       </button>
@@ -45,20 +82,24 @@ export function Toolbar({ onOpen, onSave, onSaveAs, onToggleScript, showScript, 
         ↪
       </button>
 
-      <div className="w-px h-5 bg-gray-600 mx-1" />
+      {!isPr && (
+        <>
+          <div className="w-px h-5 bg-gray-600 mx-1" />
 
-      {/* View */}
-      <button onClick={onToggleScript}
-        className={`px-3 py-1 text-sm rounded transition-colors ${showScript ? 'bg-blue-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
-        title="Toggle Script Editor">
-        {'</>'} Script
-      </button>
+          {/* View (AE only) */}
+          <button onClick={onToggleScript}
+            className={`px-3 py-1 text-sm rounded transition-colors ${showScript ? 'bg-blue-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
+            title="Toggle Script Editor">
+            {'</>'} Script
+          </button>
 
-      <button onClick={onToggleAcrViewer}
-        className={`px-3 py-1 text-sm rounded transition-colors ${showAcrViewer ? 'bg-purple-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
-        title="Toggle ACR Type Viewer">
-        🔍 ACR
-      </button>
+          <button onClick={onToggleAcrViewer}
+            className={`px-3 py-1 text-sm rounded transition-colors ${showAcrViewer ? 'bg-purple-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
+            title="Toggle ACR Type Viewer">
+            🔍 ACR
+          </button>
+        </>
+      )}
 
       <div className="flex-1" />
 
@@ -80,14 +121,24 @@ export function Toolbar({ onOpen, onSave, onSaveAs, onToggleScript, showScript, 
         </button>
       )}
 
-      {/* Select AE Directory */}
-      <button
-        onClick={handleSelectAeDir}
-        className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
-        title="选择 AE 目录"
-      >
-        ⚙ 设置
-      </button>
+      {/* Directory settings */}
+      {isPr ? (
+        <button
+          onClick={handleSelectPrDir}
+          className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+          title="选择 PromeRotation PureTimelines 目录"
+        >
+          ⚙ PR目录
+        </button>
+      ) : (
+        <button
+          onClick={handleSelectAeDir}
+          className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+          title="选择 AE 目录"
+        >
+          ⚙ 设置
+        </button>
+      )}
 
       {/* Title */}
       <span className="text-sm text-gray-400 truncate max-w-md">
