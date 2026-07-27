@@ -1,4 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type {
+  AppSettings, CactbotCatalogResult, CactbotDownloadResult,
+  ProxySettings, ProxyTestResult
+} from '../shared/cactbotTypes'
 
 export interface FileResult {
   success: boolean
@@ -81,6 +85,19 @@ const api = {
     ipcRenderer.on('pr:directoryChanged', handler)
     return () => ipcRenderer.removeListener('pr:directoryChanged', handler)
   },
+
+  // App settings and cactbot network access
+  getSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke('settings:get'),
+  setProxySettings: (settings: ProxySettings): Promise<
+    { success: true; settings: ProxySettings } | { success: false; error: string }
+  > => ipcRenderer.invoke('settings:setProxy', settings),
+  listCactbotFiles: (refresh = false): Promise<CactbotCatalogResult> =>
+    ipcRenderer.invoke('cactbot:list', refresh),
+  downloadCactbotFile: (path: string, hasLocalization: boolean): Promise<CactbotDownloadResult> =>
+    ipcRenderer.invoke('cactbot:download', path, hasLocalization),
+  testCactbotProxy: (): Promise<ProxyTestResult> =>
+    ipcRenderer.invoke('cactbot:testProxy'),
 
   // ACR types
   discoverAcrTypes: (): Promise<{

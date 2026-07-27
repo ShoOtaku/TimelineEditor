@@ -57,6 +57,7 @@ export interface PrStore {
   loadFile: (path: string) => Promise<boolean>
   saveFile: (path: string) => Promise<void>
   newDocument: (name: string) => void
+  importDocument: (doc: PtlDocument, sourceName: string) => void
   select: (sel: PrSelection | null) => void
   toggleExpanded: (entryGuid: string) => void
   setExpanded: (entryGuid: string, expanded: boolean) => void

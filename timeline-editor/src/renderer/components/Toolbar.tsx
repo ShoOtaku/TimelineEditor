@@ -1,3 +1,8 @@
+import {
+  Clock3, Code2, Download, FolderOpen, Import, Plus, Redo2, RefreshCw,
+  Save, SaveAll, ScanSearch, Settings, Undo2, Workflow
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { EditorMode } from '../store/prStore'
 
 interface ToolbarProps {
@@ -11,140 +16,108 @@ interface ToolbarProps {
   onToggleAcrViewer: () => void
   showAcrViewer: boolean
   onNewPr: () => void
+  onOpenCactbot: () => void
+  onOpenSettings: () => void
   fileName: string | null
   isDirty: boolean
   updateAvailable?: boolean
   onCheckUpdate?: () => void
 }
 
-export function Toolbar({
-  mode, onToggleMode, onOpen, onSave, onSaveAs, onToggleScript, showScript,
-  onToggleAcrViewer, showAcrViewer, onNewPr, fileName, isDirty, updateAvailable, onCheckUpdate
-}: ToolbarProps) {
-  const isPr = mode === 'pr'
-
-  const handleSelectAeDir = async () => {
-    const result = await window.electronAPI.selectAeDirectory()
-    if (!result.cancelled) {
-      console.log('AE directory changed to:', result.directory)
-    }
-  }
-
-  const handleSelectPrDir = async () => {
-    const result = await window.electronAPI.selectPrDirectory()
-    if (!result.cancelled) {
-      console.log('PR directory changed to:', result.directory)
-    }
-  }
-
-  return (
-    <div className="h-10 bg-gray-800 border-b border-gray-700 flex items-center px-3 gap-1 select-none flex-shrink-0">
-      {/* Mode switch */}
-      <button
-        onClick={onToggleMode}
-        className={`px-3 py-1 text-sm rounded font-semibold transition-colors ${
-          isPr
-            ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
-            : 'bg-indigo-700 hover:bg-indigo-600 text-white'
-        }`}
-        title={isPr ? '当前：PromeRotation 时间轴，点击切换到 AE 时间轴' : '当前：AE 时间轴，点击切换到 PromeRotation 时间轴'}
-      >
-        {isPr ? '⏱ PR 时间轴' : '🌲 AE 时间轴'}
-      </button>
-
-      <div className="w-px h-5 bg-gray-600 mx-1" />
-
-      {/* File operations */}
-      {isPr && (
-        <button onClick={onNewPr} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="新建 PR 时间轴">
-          ✚ 新建
-        </button>
-      )}
-      <button onClick={onOpen} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Open (Ctrl+O)">
-        📂 Open
-      </button>
-      <button onClick={onSave} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Save (Ctrl+S)">
-        💾 Save
-      </button>
-      <button onClick={onSaveAs} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Save As">
-        📄 Save As
-      </button>
-
-      <div className="w-px h-5 bg-gray-600 mx-1" />
-
-      {/* Edit */}
-      <button onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }))}
-        className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Undo (Ctrl+Z)">
-        ↩
-      </button>
-      <button onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true }))}
-        className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors" title="Redo (Ctrl+Y)">
-        ↪
-      </button>
-
-      {!isPr && (
-        <>
-          <div className="w-px h-5 bg-gray-600 mx-1" />
-
-          {/* View (AE only) */}
-          <button onClick={onToggleScript}
-            className={`px-3 py-1 text-sm rounded transition-colors ${showScript ? 'bg-blue-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
-            title="Toggle Script Editor">
-            {'</>'} Script
-          </button>
-
-          <button onClick={onToggleAcrViewer}
-            className={`px-3 py-1 text-sm rounded transition-colors ${showAcrViewer ? 'bg-purple-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
-            title="Toggle ACR Type Viewer">
-            🔍 ACR
-          </button>
-        </>
-      )}
-
-      <div className="flex-1" />
-
-      {/* Check for Updates */}
-      {onCheckUpdate && (
-        <button
-          onClick={onCheckUpdate}
-          className={`px-2 py-1 text-sm rounded transition-colors relative ${
-            updateAvailable
-              ? 'bg-green-800 hover:bg-green-700 text-green-300'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-          }`}
-          title="检查更新"
-        >
-          🔄 更新
-          {updateAvailable && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full border border-gray-800" />
-          )}
-        </button>
-      )}
-
-      {/* Directory settings */}
-      {isPr ? (
-        <button
-          onClick={handleSelectPrDir}
-          className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
-          title="选择 PromeRotation PureTimelines 目录"
-        >
-          ⚙ PR目录
-        </button>
-      ) : (
-        <button
-          onClick={handleSelectAeDir}
-          className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
-          title="选择 AE 目录"
-        >
-          ⚙ 设置
-        </button>
-      )}
-
-      {/* Title */}
-      <span className="text-sm text-gray-400 truncate max-w-md">
-        {fileName || 'Untitled'}
-        {isDirty && <span className="text-yellow-400 ml-1">●</span>}
+export function Toolbar(props: ToolbarProps) {
+  const isPr = props.mode === 'pr'
+  return <div className="flex h-11 shrink-0 select-none items-center gap-1 border-b border-gray-700 bg-gray-800 px-3">
+      <ModeButton isPr={isPr} onClick={props.onToggleMode} />
+      <Divider />
+      <DocumentCommands isPr={isPr} props={props} />
+      <Divider />
+      <HistoryCommands />
+      {!isPr && <AeCommands props={props} />}
+      <div className="min-w-3 flex-1" />
+      <UpdateCommand available={props.updateAvailable} onClick={props.onCheckUpdate} />
+      <ToolbarIcon icon={Settings} label="设置" title="设置" onClick={props.onOpenSettings} />
+      <span className="ml-2 max-w-80 truncate text-xs text-gray-400" title={props.fileName ?? '未命名'}>
+        {props.fileName || '未命名'}
+        {props.isDirty && <span className="ml-1 text-amber-400" aria-label="有未保存修改">*</span>}
       </span>
     </div>
+}
+
+function ModeButton({ isPr, onClick }: { isPr: boolean; onClick: () => void }) {
+  const Icon = isPr ? Clock3 : Workflow
+  return <button type="button" onClick={onClick}
+    className={`command-button font-semibold ${isPr
+      ? 'border-emerald-700 bg-emerald-900/70 text-emerald-100 hover:bg-emerald-800'
+      : 'border-indigo-700 bg-indigo-900/70 text-indigo-100 hover:bg-indigo-800'}`}
+    title={isPr ? '切换到 AE 时间轴' : '切换到 PromeRotation 时间轴'}>
+    <Icon size={16} />{isPr ? 'PR 时间轴' : 'AE 时间轴'}
+  </button>
+}
+
+function DocumentCommands({ isPr, props }: { isPr: boolean; props: ToolbarProps }) {
+  return <>
+    {isPr && <>
+      <ToolbarCommand icon={Plus} label="新建" title="新建 PR 时间轴" onClick={props.onNewPr} />
+      <ToolbarCommand icon={Import} label="Cactbot" title="导入 cactbot 官方时间轴" onClick={props.onOpenCactbot} />
+    </>}
+    <ToolbarIcon icon={FolderOpen} label="打开" title="打开（Ctrl+O）" onClick={props.onOpen} />
+    <ToolbarIcon icon={Save} label="保存" title="保存（Ctrl+S）" onClick={props.onSave} />
+    <ToolbarIcon icon={SaveAll} label="另存为" title="另存为" onClick={props.onSaveAs} />
+  </>
+}
+
+function HistoryCommands() {
+  const dispatch = (key: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: true }))
+  return <>
+    <ToolbarIcon icon={Undo2} label="撤销" title="撤销（Ctrl+Z）" onClick={() => dispatch('z')} />
+    <ToolbarIcon icon={Redo2} label="重做" title="重做（Ctrl+Y）" onClick={() => dispatch('y')} />
+  </>
+}
+
+function AeCommands({ props }: { props: ToolbarProps }) {
+  return <>
+    <Divider />
+    <ToolbarCommand icon={Code2} label="脚本" title="切换脚本编辑器"
+      active={props.showScript} onClick={props.onToggleScript} />
+    <ToolbarCommand icon={ScanSearch} label="ACR" title="切换 ACR 类型浏览器"
+      active={props.showAcrViewer} onClick={props.onToggleAcrViewer} />
+  </>
+}
+
+function UpdateCommand({ available, onClick }: { available?: boolean; onClick?: () => void }) {
+  if (!onClick) return null
+  return <button type="button" onClick={onClick} className="icon-button relative" aria-label="检查更新" title="检查更新">
+    <RefreshCw size={16} />
+    {available && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full border border-gray-800 bg-emerald-400" />}
+  </button>
+}
+
+function Divider() {
+  return <div className="mx-1 h-5 w-px bg-gray-700" aria-hidden="true" />
+}
+
+function ToolbarIcon({ icon: Icon, label, title, onClick }: {
+  icon: LucideIcon; label: string; title: string; onClick: () => void
+}) {
+  return (
+    <button type="button" onClick={onClick} className="icon-button" aria-label={label} title={title}>
+      <Icon size={16} />
+    </button>
+  )
+}
+
+function ToolbarCommand({ icon: Icon, label, title, active, onClick }: {
+  icon: LucideIcon; label: string; title: string; active?: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`command-button ${active ? 'border-blue-600 bg-blue-900/70 text-blue-100' : ''}`}
+      title={title}
+    >
+      <Icon size={15} />
+      {label}
+    </button>
   )
 }

@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+import type {
+  AppSettings, CactbotCatalogResult, CactbotDownloadResult,
+  ProxySettings, ProxyTestResult
+} from '../shared/cactbotTypes'
+
 interface ElectronFileResult {
   success: boolean
   content?: string
@@ -44,6 +49,15 @@ interface ElectronAPI {
   openPrFileDialog(): Promise<ElectronDialogResult>
   savePrFileDialog(defaultName?: string): Promise<ElectronDialogResult>
   onPrDirectoryChanged(callback: (newDir: string) => void): () => void
+
+  // App settings and cactbot network access
+  getSettings(): Promise<AppSettings>
+  setProxySettings(settings: ProxySettings): Promise<
+    { success: true; settings: ProxySettings } | { success: false; error: string }
+  >
+  listCactbotFiles(refresh?: boolean): Promise<CactbotCatalogResult>
+  downloadCactbotFile(path: string, hasLocalization: boolean): Promise<CactbotDownloadResult>
+  testCactbotProxy(): Promise<ProxyTestResult>
 
   discoverAcrTypes(): Promise<{
     success: boolean

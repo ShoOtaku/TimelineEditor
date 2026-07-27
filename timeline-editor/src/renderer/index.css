@@ -52,7 +52,7 @@
 
 /* Form input styling */
 .field-input {
-  @apply w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 focus:border-blue-500 focus:outline-none transition-colors;
+  @apply w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 input[type="number"].field-input {
@@ -61,4 +61,44 @@ input[type="number"].field-input {
 
 select.field-input {
   @apply cursor-pointer;
+}
+
+.icon-button {
+  @apply inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded border border-transparent text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.command-button,
+.command-button-primary {
+  @apply inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.command-button {
+  @apply border-gray-600 bg-gray-800 text-gray-200 hover:bg-gray-700;
+}
+
+.command-button-primary {
+  @apply border-blue-500 bg-blue-600 text-white hover:bg-blue-500;
+}
+
+.segmented-control {
+  @apply grid h-8 grid-cols-2 overflow-hidden rounded border border-gray-600 bg-gray-950 p-0.5 disabled:opacity-50;
+}
+
+.segmented-control button {
+  @apply cursor-pointer rounded-sm px-2 text-[11px] font-semibold text-gray-500 transition-colors hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed;
+}
+
+.segmented-control button.is-active {
+  @apply bg-gray-700 text-gray-100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

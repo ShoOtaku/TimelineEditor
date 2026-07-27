@@ -88,6 +88,22 @@ export const usePrStore = create<PrStore>()(
       })
     },
 
+    importDocument: (doc, sourceName) => {
+      const safeName = sourceName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'CactbotTimeline'
+      set({
+        doc,
+        filePath: null,
+        fileName: `${safeName}.json`,
+        isDirty: true,
+        loadError: null,
+        selection: { kind: 'meta' },
+        expandedEntries: {},
+        collapsedNodes: {},
+        undoStack: [],
+        redoStack: []
+      })
+    },
+
     // Selecting an entry (or one of its nodes) reveals its node tree —
     // node editing was undiscoverable while the tree stayed collapsed.
     select: (sel) => {

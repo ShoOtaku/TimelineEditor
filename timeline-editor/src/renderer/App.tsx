@@ -4,6 +4,8 @@ import { Sidebar } from './components/Sidebar'
 import { TreeView } from './components/TreeView'
 import { PropertyPanel } from './panels/PropertyPanel'
 import { UpdateDialog } from './components/UpdateDialog'
+import { SettingsDialog } from './components/SettingsDialog'
+import { CactbotImportDialog } from './components/CactbotImportDialog'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -63,6 +65,8 @@ export default function App() {
   const [panelWidth, setPanelWidth] = useState(340)
   const [scriptHeight, setScriptHeight] = useState(300)
   const [showUpdate, setShowUpdate] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [showCactbotImport, setShowCactbotImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const isResizingSidebar = useRef(false)
   const isResizingPanel = useRef(false)
@@ -198,6 +202,8 @@ export default function App() {
         onToggleAcrViewer={() => setShowAcrViewer(s => !s)}
         showAcrViewer={showAcrViewer}
         onNewPr={handleNewPr}
+        onOpenCactbot={() => setShowCactbotImport(true)}
+        onOpenSettings={() => setShowSettings(true)}
         fileName={isPr ? prFileName : fileName}
         isDirty={isPr ? prIsDirty : isDirty}
         updateAvailable={updateAvailable}
@@ -270,6 +276,8 @@ export default function App() {
       <KeyboardShortcuts />
       <DialogHost />
       {showUpdate && <UpdateDialog onClose={() => { setShowUpdate(false); setUpdateAvailable(false) }} />}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {showCactbotImport && <CactbotImportDialog onClose={() => setShowCactbotImport(false)} />}
     </div>
     </ErrorBoundary>
   )
