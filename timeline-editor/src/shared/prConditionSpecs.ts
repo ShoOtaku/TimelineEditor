@@ -4,7 +4,7 @@
 import {
   PR_COMPARE_MODES, PR_EFFECT_SOURCE_MODES, PR_EFFECT_SOURCE_MODE_LABELS,
   PR_EFFECT_TARGET_MODES, PR_EFFECT_TARGET_MODE_LABELS,
-  PR_POSITION_CHECK_MODES, PR_POSITION_CHECK_MODE_LABELS, PR_TIMELINE_ROLES
+  PR_POSITION_CHECK_MODES, PR_POSITION_CHECK_MODE_LABELS, PR_ROLES
 } from './prTypes'
 import type { PrTypeSpec } from './prSpecTypes'
 import { IMMEDIATE, NEGATE, COMPARE, TARGET } from './prSpecTypes'
@@ -117,7 +117,7 @@ export const PR_CONDITION_SPECS: PrTypeSpec[] = [
   },
   {
     key: 'timelinerole', label: '职能检测',
-    fields: [{ path: 'Params.role', label: '职能', kind: 'enum', options: PR_TIMELINE_ROLES, def: 'MT' }]
+    fields: [{ path: 'Params.role', label: '职能', kind: 'enum', options: PR_ROLES, def: 'MT', hint: '游戏内需在 PromeRotation 面板的「当前职能」下拉选择角色（或聊天输入 /e MT），未设置时该条件恒不成立' }]
   },
   {
     key: 'TimelineVariable', label: '变量条件',

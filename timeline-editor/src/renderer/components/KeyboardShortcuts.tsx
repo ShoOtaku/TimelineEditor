@@ -1,13 +1,15 @@
 import { useEffect } from 'react'
 import { useStore } from '../store'
 import { usePrStore } from '../store/prStore'
-import { askConfirm } from '../store/dialogStore'
+import { askConfirm, isDialogOpen } from '../store/dialogStore'
+import { countEntryNodes, isCompositeNode } from '../pr/prModel'
 
 export function KeyboardShortcuts() {
   const selectedNodeId = useStore(s => s.selectedNodeId)
   const undo = useStore(s => s.undo)
   const redo = useStore(s => s.redo)
   const deleteNode = useStore(s => s.deleteNode)
+  const getNodeById = useStore(s => s.getNodeById)
   const toggleNodeEnabled = useStore(s => s.toggleNodeEnabled)
   const duplicateNode = useStore(s => s.duplicateNode)
   const copyNode = useStore(s => s.copyNode)
@@ -25,10 +27,20 @@ export function KeyboardShortcuts() {
   const prDuplicateAnchor = usePrStore(s => s.duplicateAnchor)
   const prDuplicateEntry = usePrStore(s => s.duplicateEntry)
   const prDuplicateEntryNode = usePrStore(s => s.duplicateEntryNode)
+  const prClipboard = usePrStore(s => s.clipboard)
+  const prCopyEntry = usePrStore(s => s.copyEntry)
+  const prCopyNode = usePrStore(s => s.copyNode)
+  const prPasteEntry = usePrStore(s => s.pasteEntry)
+  const prPasteNode = usePrStore(s => s.pasteNode)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // 模态框打开时不响应全局快捷键（否则会隔着确认框重复触发删除等操作）
+      if (isDialogOpen()) return
+
       const target = e.target as HTMLElement
+      // target can be window/document when focus is outside the page body
+      if (!target || typeof target.closest !== 'function') return
       // Don't intercept when typing in inputs or Monaco
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' ||
           target.closest('.monaco-editor') || target.closest('[contenteditable]')) {
@@ -93,12 +105,35 @@ export function KeyboardShortcuts() {
             }
             prDeleteAnchor(guid)
           } else if (prSelection.kind === 'entry') {
-            prDeleteEntry(prSelection.guid)
+            const guid = prSelection.guid
+            const entry = prDoc.Entries.find(en => en.Guid === guid)
+            const n = entry ? countEntryNodes(entry) : 0
+            if (n > 1) {
+              askConfirm({
+                title: '删除行为组',
+                message: `行为组「${entry?.Name || '未命名'}」包含 ${n} 个节点，删除后可通过 Ctrl+Z 撤销。`,
+                confirmLabel: '删除',
+                danger: true
+              }).then(ok => { if (ok) prDeleteEntry(guid) })
+              return
+            }
+            prDeleteEntry(guid)
           } else if (prSelection.kind === 'node') {
             prDeleteEntryNode(prSelection.entryGuid, prSelection.nodeId)
           }
         } else if (selectedNodeId !== null && selectedNodeId !== 0) {
           e.preventDefault()
+          const node = getNodeById(selectedNodeId)
+          const childCount = (node as any)?.Childs?.length ?? 0
+          if (childCount > 0) {
+            askConfirm({
+              title: '删除节点',
+              message: `节点「${node?.DisplayName || selectedNodeId}」包含 ${childCount} 个子节点，将一并删除。`,
+              confirmLabel: '一并删除',
+              danger: true
+            }).then(ok => { if (ok) deleteNode(selectedNodeId) })
+            return
+          }
           deleteNode(selectedNodeId)
         }
         return
@@ -122,6 +157,42 @@ export function KeyboardShortcuts() {
         } else if (selectedNodeId !== null && selectedNodeId !== 0) {
           e.preventDefault()
           duplicateNode(selectedNodeId)
+        }
+        return
+      }
+
+      // Ctrl+C / Ctrl+V (PR): copy & paste entries / nodes across anchors
+      if (isPr && ctrl && e.key === 'c') {
+        if (!prSelection) return
+        e.preventDefault()
+        if (prSelection.kind === 'entry') prCopyEntry(prSelection.guid)
+        else if (prSelection.kind === 'node') prCopyNode(prSelection.entryGuid, prSelection.nodeId)
+        return
+      }
+      if (isPr && ctrl && e.key === 'v') {
+        if (!prClipboard || !prDoc) return
+        e.preventDefault()
+        if (prClipboard.kind === 'entry') {
+          // Paste onto the selected anchor, or onto the anchor of the selected entry/node
+          const anchorGuid = prSelection?.kind === 'anchor' ? prSelection.guid
+            : prSelection?.kind === 'entry'
+              ? prDoc.Entries.find(en => en.Guid === prSelection.guid)?.StartAnchorGuid
+              : prSelection?.kind === 'node'
+                ? prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)?.StartAnchorGuid
+                : null
+          if (anchorGuid) prPasteEntry(anchorGuid)
+        } else {
+          // Node: paste into the composite / after the selected node, or into the entry root
+          if (prSelection?.kind === 'node') {
+            const entry = prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)
+            let target: import('@shared/prTypes').PtlNode | null = null
+            const walk = (n: import('@shared/prTypes').PtlNode) => { if (n.Id === prSelection.nodeId) target = n; (n.Children ?? []).forEach(walk) }
+            if (entry) walk(entry.EntryGroup)
+            const inside = target && isCompositeNode(target)
+            prPasteNode(prSelection.entryGuid, prSelection.nodeId, inside ? 'inside' : 'after')
+          } else if (prSelection?.kind === 'entry') {
+            prPasteNode(prSelection.guid, null)
+          }
         }
         return
       }
@@ -150,9 +221,10 @@ export function KeyboardShortcuts() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [
-    selectedNodeId, undo, redo, deleteNode, toggleNodeEnabled, duplicateNode, copyNode, pasteNode, clipboard,
+    selectedNodeId, undo, redo, deleteNode, getNodeById, toggleNodeEnabled, duplicateNode, copyNode, pasteNode, clipboard,
     editorMode, prSelection, prDoc, prUndo, prRedo,
-    prDeleteAnchor, prDeleteEntry, prDeleteEntryNode, prDuplicateAnchor, prDuplicateEntry, prDuplicateEntryNode
+    prDeleteAnchor, prDeleteEntry, prDeleteEntryNode, prDuplicateAnchor, prDuplicateEntry, prDuplicateEntryNode,
+    prClipboard, prCopyEntry, prCopyNode, prPasteEntry, prPasteNode
   ])
 
   return null

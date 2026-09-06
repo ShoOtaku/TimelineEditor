@@ -14,15 +14,23 @@ interface BaseProps {
  * window.confirm blocks the renderer with a native modal — both are replaced
  * by this component.
  */
-export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, danger, onConfirm, onCancel }:
-  BaseProps & { onConfirm: () => void }) {
+export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, danger, hideCancel, onConfirm, onCancel }:
+  BaseProps & { hideCancel?: boolean; onConfirm: () => void }) {
+  // Enter confirms; Escape cancels (handled by Shell)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); onConfirm() } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onConfirm])
+
   return (
-    <Shell title={title} onCancel={onCancel}>
+    <Shell title={title} onCancel={onCancel} closeOnOverlay={!danger}>
       {message && <div className="text-[13px] text-gray-300 whitespace-pre-line">{message}</div>}
       <Buttons
         confirmLabel={confirmLabel ?? '确定'}
         cancelLabel={cancelLabel ?? '取消'}
         danger={danger}
+        hideCancel={hideCancel}
         onConfirm={onConfirm}
         onCancel={onCancel}
       />
@@ -72,7 +80,9 @@ export function PromptDialog({ title, message, defaultValue, placeholder, confir
   )
 }
 
-function Shell({ title, children, onCancel }: { title: string; children: React.ReactNode; onCancel: () => void }) {
+function Shell({ title, children, onCancel, closeOnOverlay = true }: {
+  title: string; children: React.ReactNode; onCancel: () => void; closeOnOverlay?: boolean
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
     window.addEventListener('keydown', onKey)
@@ -82,7 +92,7 @@ function Shell({ title, children, onCancel }: { title: string; children: React.R
   return (
     <div
       className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center"
-      onClick={onCancel}
+      onClick={closeOnOverlay ? onCancel : undefined}
     >
       <div
         className="w-[420px] max-w-[90vw] bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden"
@@ -97,25 +107,29 @@ function Shell({ title, children, onCancel }: { title: string; children: React.R
   )
 }
 
-function Buttons({ confirmLabel, cancelLabel, danger, confirmDisabled, onConfirm, onCancel }: {
+function Buttons({ confirmLabel, cancelLabel, danger, confirmDisabled, hideCancel, onConfirm, onCancel }: {
   confirmLabel: string
   cancelLabel: string
   danger?: boolean
   confirmDisabled?: boolean
+  hideCancel?: boolean
   onConfirm: () => void
   onCancel: () => void
 }) {
   return (
     <div className="flex justify-end gap-2 pt-1">
-      <button
-        onClick={onCancel}
-        className="px-3 py-1.5 text-[12px] bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
-      >
-        {cancelLabel}
-      </button>
+      {!hideCancel && (
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 text-[12px] bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+        >
+          {cancelLabel}
+        </button>
+      )}
       <button
         onClick={onConfirm}
         disabled={confirmDisabled}
+        autoFocus
         className={`px-3 py-1.5 text-[12px] rounded transition-colors disabled:opacity-40 ${
           danger
             ? 'bg-red-800 hover:bg-red-700 text-red-100'

@@ -5,9 +5,9 @@ import { useStore } from '../store'
 export function PrField({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div>
-      <div className="text-[10px] text-gray-500 mb-0.5 flex items-baseline gap-1.5">
+      <div className="text-[10px] text-gray-400 mb-0.5 flex items-baseline gap-1.5">
         <span>{label}</span>
-        {hint && <span className="text-gray-600">{hint}</span>}
+        {hint && <span className="text-gray-500">{hint}</span>}
       </div>
       {children}
     </div>

@@ -10,6 +10,15 @@ interface ConfirmRequest {
   resolve: (ok: boolean) => void
 }
 
+interface AlertRequest {
+  kind: 'alert'
+  title: string
+  message?: string
+  confirmLabel?: string
+  danger?: boolean
+  resolve: () => void
+}
+
 interface PromptRequest {
   kind: 'prompt'
   title: string
@@ -21,7 +30,7 @@ interface PromptRequest {
   resolve: (value: string | null) => void
 }
 
-export type DialogRequest = ConfirmRequest | PromptRequest
+export type DialogRequest = ConfirmRequest | PromptRequest | AlertRequest
 
 interface DialogStore {
   request: DialogRequest | null
@@ -55,4 +64,20 @@ export function askPrompt(opts: Omit<PromptRequest, 'kind' | 'resolve'>): Promis
       resolve: (value) => { useDialogStore.getState().close(); resolve(value) }
     })
   })
+}
+
+/** Show a message with a single dismiss button (e.g. save/load failure) */
+export function askAlert(opts: Omit<AlertRequest, 'kind' | 'resolve'>): Promise<void> {
+  return new Promise(resolve => {
+    useDialogStore.getState().open({
+      ...opts,
+      kind: 'alert',
+      resolve: () => { useDialogStore.getState().close(); resolve() }
+    })
+  })
+}
+
+/** True while any in-app modal is open — global shortcuts must stay quiet then */
+export function isDialogOpen(): boolean {
+  return useDialogStore.getState().request !== null
 }

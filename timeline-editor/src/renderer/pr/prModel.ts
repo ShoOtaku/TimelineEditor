@@ -193,6 +193,12 @@ export function findNode(root: PtlNode, id: number): PtlNode | null {
   return found
 }
 
+export function countEntryNodes(entry: PtlEntry): number {
+  let count = 0
+  walkNodes(entry.EntryGroup, () => { count++ })
+  return count
+}
+
 export function findNodeParent(root: PtlNode, id: number): PtlNode | null {
   let found: PtlNode | null = null
   walkNodes(root, (n, parent) => { if (n.Id === id && !found) found = parent })

@@ -2,7 +2,8 @@
 import type { PtlDocument, PtlAnchor, PtlEntry, PtlNode } from '@shared/prTypes'
 import {
   createAnchor, createEntry, createNode, newGuid,
-  sortedAnchors, findNode, findNodeParent, nextNodeId, reassignNodeIds, isCompositeNode
+  sortedAnchors, findNode, findNodeParent, nextNodeId, reassignNodeIds, isCompositeNode,
+  segmentDuration
 } from './prModel'
 
 /** Append a new anchor 5s after the last non-end anchor (clamped before the end anchor) */
@@ -176,6 +177,64 @@ export function duplicateNodeInEntry(entry: PtlEntry, nodeId: number): PtlNode |
   if (idx < 0) return null
   const clone = JSON.parse(JSON.stringify(parent.Children[idx])) as PtlNode
   reassignNodeIds(clone, nextNodeId(entry.EntryGroup))
+  parent.Children.splice(idx + 1, 0, clone)
+  return clone
+}
+
+/**
+ * Paste a clipboard entry onto `anchorGuid` (cross-anchor copy). Fresh Guid;
+ * Offset is clamped into the target anchor's segment window. Node ids are
+ * entry-scoped, so the subtree keeps them (same as duplicateEntryInDoc).
+ * Returns null when the anchor cannot host entries.
+ */
+export function pasteEntryToDoc(doc: PtlDocument, anchorGuid: string, src: PtlEntry): PtlEntry | null {
+  const anchor = doc.Anchors.find(a => a.Guid === anchorGuid)
+  if (!anchor || anchor.IsEndAnchor || anchor.IsCommentAnchor || anchor.IsTechnicalAnchor) return null
+  // null segment = non-functional or last functional anchor — cannot host entries
+  const segLen = segmentDuration(doc, anchorGuid)
+  if (segLen === null) return null
+  const clone = JSON.parse(JSON.stringify(src)) as PtlEntry
+  clone.Guid = newGuid()
+  clone.StartAnchorGuid = anchorGuid
+  clone.Offset = Math.min(Math.max(0, clone.Offset || 0), Math.max(0, segLen - 0.1))
+  doc.Entries.push(clone)
+  return clone
+}
+
+/**
+ * Paste a clipboard node into `entry` — inside `targetNodeId` when it is a
+ * composite (or when targetNodeId is null, into the root group), otherwise as
+ * the target's next sibling. The subtree gets fresh ids.
+ */
+export function pasteNodeToEntry(
+  entry: PtlEntry, src: PtlNode, targetNodeId: number | null, position: 'inside' | 'after' = 'after'
+): PtlNode | null {
+  const root = entry.EntryGroup
+  const clone = JSON.parse(JSON.stringify(src)) as PtlNode
+  reassignNodeIds(clone, nextNodeId(root))
+
+  if (targetNodeId === null) {
+    if (!root.Children) root.Children = []
+    root.Children.push(clone)
+    return clone
+  }
+  const target = findNode(root, targetNodeId)
+  if (!target) return null
+  if (position === 'inside' && isCompositeNode(target)) {
+    if (!target.Children) target.Children = []
+    target.Children.push(clone)
+    return clone
+  }
+  if (targetNodeId === root.Id) {
+    // root has no siblings — fall back to appending inside it
+    if (!root.Children) root.Children = []
+    root.Children.push(clone)
+    return clone
+  }
+  const parent = findNodeParent(root, targetNodeId)
+  if (!parent?.Children) return null
+  const idx = parent.Children.findIndex(c => c.Id === targetNodeId)
+  if (idx < 0) return null
   parent.Children.splice(idx + 1, 0, clone)
   return clone
 }

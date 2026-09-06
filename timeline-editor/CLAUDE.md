@@ -2,8 +2,8 @@
 
 FFXIV 时间轴外部编辑器，支持两种格式（工具栏左上按钮切换）：
 
-1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑锚点同步规则/行为组/节点/条件/动作。
+1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。
 
 ## 项目结构
 
@@ -31,7 +31,7 @@ timeline-editor/
 │   ├── plugins/
 │   │   └── index.ts            # PluginRegistry 单例（预留扩展框架）
 │   └── renderer/
-│       ├── main.tsx            # React 入口
+│       ├── main.tsx            # React 入口（DEV 下暴露 window.__prStore 供 CDP/E2E 脚本用）
 │       ├── App.tsx             # 主布局 — Sidebar | TreeView | PropertyPanel + ScriptPanel
 │       ├── env.d.ts            # window.electronAPI 类型声明
 │       ├── index.css           # TailwindCSS + 暗色主题 + 自定义 .field-input .field-input
@@ -54,6 +54,7 @@ timeline-editor/
 │       │   ├── PrNodeEditor.tsx    # 节点编辑 + 常驻节点工具条（7 种节点类型）
 │       │   ├── PrConditionEditor.tsx # 条件编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrActionEditor.tsx    # 动作编辑（规格驱动 + 原始字段回退）
+│       │   ├── PrScriptPanel.tsx    # Monaco C# 编辑器（scriptTarget: csharprunningaction 节点 Script / Meta.CustomOpener.Script，500ms 防抖自动应用）
 │       │   └── prFields.tsx    # 共享字段组件（PrField/PrNumberInput/技能名提示）
 │       ├── components/
 │       │   ├── TreeView.tsx    # 可展开树列表
@@ -65,13 +66,14 @@ timeline-editor/
 │       │   ├── Canvas.tsx      # （旧版 ReactFlow 画布，已弃用）
 │       │   └── layout.ts       # Dagre 布局（旧画布用）
 │       └── panels/
-│           ├── PropertyPanel.tsx      # 属性编辑 + 动态条件/动作类型选择器（内置 + ACR）
+│           ├── PropertyPanel.tsx      # 属性编辑 + 动态条件/动作类型选择器（内置 + ACR）；未选中节点时显示 DocMetaPanel
+│           ├── DocMetaPanel.tsx       # AE 时间轴元数据编辑（updateDocMeta，GUID 重新生成，起手脚本入口）
 │           ├── ConditionEditor.tsx    # 条件子编辑器 — 18 种内置 + ACR 字段渲染 + 语义识别
 │           ├── ActionEditor.tsx       # 动作子编辑器 — 11 种内置 + QT 自动识别 + ACR 字段渲染
 │           ├── semanticFields.ts      # 语义字段映射 — OperatorIndex→比较符下拉, PartyRole→职能下拉
 │           ├── SpellConfigEditor.tsx  # 技能配置
 │           ├── TargetSelectorEditor.tsx # 目标选择器
-│           └── ScriptPanel.tsx       # Monaco C# 编辑器
+│           └── ScriptPanel.tsx       # Monaco C# 编辑器（scriptTarget: 节点 Script / 文档 OpenerScript，500ms 防抖自动应用）
 ```
 
 ## 技术栈
@@ -109,6 +111,9 @@ npm run dist      # 打包为 .exe（→ release/Timeline Editor 1.0.0.exe）
 - **Round-trip 安全**：所有节点和条件/动作都有 `[key: string]: unknown` catch-all，未知字段完整保留。
 - **Electron 无 window.prompt**：调用不会弹窗（静默失败），`window.confirm` 则是阻塞渲染进程的原生模态。统一用 `store/dialogStore.ts` 的 `askConfirm()` / `askPrompt()` + `<DialogHost />`。
 - **数字输入**：受控 `<input type="number">` 会吞掉中间态（"0." 解析成 0 后回写，导致小数打不出来）。数值字段一律用 `PrNumberInput`，它保留输入过程中的原始文本。
+- **撤销合并（undo tag）**：`pushUndo(s, tag?)` — 连续相同 tag 的编辑共用一个撤销步（脚本逐键自动保存、Meta 文本框逐字输入不会冲掉 50 步撤销栈）。脚本用 `script:{nodeId}` / `script:opener`，Meta 字段用 `meta:{字段名}`，PR 变量用 `var:{i}:{字段}`。
+- **保存/打开失败必须可见**：store 的 `loadFile`/`saveFile` 返回 `Promise<boolean>`，失败时 `askAlert()` 弹窗 + 置 `loadError`；打开/切换文件前检查 `isDirty` 并 `askConfirm`。
+- **模态框打开时全局快捷键静默**：`KeyboardShortcuts` handler 首行 `isDialogOpen()` 短路。
 
 ## 数据模型
 
@@ -140,8 +145,8 @@ npm run dist      # 打包为 .exe（→ release/Timeline Editor 1.0.0.exe）
 每个条件/动作类的 `Descriptor` 定义了权威 TypeKey 与中文 DisplayName，`ToDto()` 决定实际写出的字段。改类型定义前先读源码，不要依赖 DLL 反编译（字符串被混淆）。
 
 ```
-PtlDocument { Version=1, Meta{Name,TerritoryId,JobId,Author,AcrAuthor,CreatedAt,Opener,Remark},
-  Variables[], Anchors[], Entries[] }
+PtlDocument { Version=1, Meta{Name,TerritoryId,JobId,Author,AcrAuthor,CreatedAt,Opener,Remark,
+  CustomOpener?{Script}}, Variables[], Anchors[], Entries[] }
 Anchor { Guid, Name, Time(秒), IsPhaseAnchor, IsEndAnchor, IsCommentAnchor, IsTechnicalAnchor,
   Enabled, Remark, Sync?{ Type, Params{ActionId?,Regex?}, MatchTime?, JumpTargetTime?,
   IsForceJump, WindowBefore, WindowAfter } }
@@ -161,6 +166,10 @@ Node { Id, Name, Type: serial|parallel|condition|action|branch|delay, Enabled, R
 - **校验规则**（PtlDefinition.BuildSegments，已移植到 `prModel.ts::validatePtlDocument`）：功能锚点（非注释/技术）≥2；首个功能锚点 Time=0 且 Sync=InCombat；时间严格递增（ε=0.0001）；最后一个功能锚点必须是唯一 End 锚点；End 与 Phase 互斥；Entry 必须绑定非 End 功能锚点且 Offset ∈ [0, 下一锚点时间差)
 - **运行时默认**：WindowBefore/After 均 ≤0 时取 ±2.5s（普通）/±10s（阶段锚点）；MatchTime/JumpTargetTime 为 null 时取锚点时间
 - **PR 目录**：默认 `%APPDATA%/XIVLauncherCN/pluginConfigs/PromeRotation/PureTimelines`，持久化在 ae-config.json 的 `prDirectory` 键
+- **起手**：`Meta.Opener` 是起手模板**名称**（留空=不覆盖，下拉候选由 ACR 插件运行时注册，本编辑器用文本输入）；`Meta.CustomOpener.Script` 是自定义起手 C# 脚本，与 `CustomOpenerDefinition.FromScript` 对齐：空白→null、序列化时省略。插件的「测试编译」依赖插件运行时，本编辑器不提供
+- **脚本面板**：AE/PR 共用一个底部 Monaco 面板，`scriptTarget`（'node'|'opener'）决定写入节点 `Script` 还是文档级起手（AE `OpenerScript` / PR `Meta.CustomOpener.Script`）；打开面板不标脏（`syncedRef` 跳过无变化写入）；`pushUndo(s, tag)` 相同 tag 的连续变更合并为一步撤销（逐键入的防抖应用依赖此机制）
+- **复制粘贴**：PR 内部剪贴板 `prStore.clipboard`（`{kind:'entry'|'node', data}` 深拷贝，跨文件保留）。Ctrl+C 复制选中行为组/节点，Ctrl+V 粘贴——行为组落到选中（或选中项所属的）锚点，`Offset` 用 `segmentDuration` 收敛进目标段窗口，锚点不可挂载（End/注释/技术/末位功能锚点）时拒绝；节点落入选中组合节点内（否则其后方同级），子树经 `reassignNodeIds` 重排 Id。行为组行 📋、锚点行「📋粘贴」、节点右键菜单（复制到剪贴板/粘贴为子节点/粘贴到后方）是等价入口
+- **职能检测（timelinerole）** 运行时判定 `TimelineRoleManager.CurrentRole`，只能由插件面板「当前职能」下拉或聊天 `/e MT` 设置（无自动检测），未设置时条件恒不成立；编辑器职能下拉因此不含 None（避免写出恒假条件）
 
 ## 技能名数据（data/actions.json）
 

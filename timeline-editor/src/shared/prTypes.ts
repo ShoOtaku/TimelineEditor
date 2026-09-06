@@ -14,6 +14,8 @@ export interface PtlMeta {
   AcrAuthor?: string | null
   CreatedAt?: string
   Opener?: string | null
+  /** 自定义起手脚本（C#，留空/空白 = 不覆盖起手；插件序列化时空值省略） */
+  CustomOpener?: { Script?: string | null } | null
   Remark?: string | null
   [key: string]: unknown
 }

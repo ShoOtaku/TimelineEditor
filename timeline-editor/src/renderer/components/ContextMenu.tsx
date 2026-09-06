@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { isComposite } from '@shared/types'
+import { askConfirm } from '../store/dialogStore'
 
 interface ContextMenuState {
   x: number
@@ -13,7 +14,7 @@ const ADD_NODE_TYPES = [
   { type: 'TreeParallel', label: '并行 (Parallel)', icon: '⇉' },
   { type: 'TreeSelect', label: '选择 (Select)', icon: '◇' },
   { type: 'TreeLoop', label: '循环 (Loop)', icon: '↻' },
-  { type: 'TreeCondNode', label: '条件 (Condition)', icon: '🔍' },
+  { type: 'TreeCondNode', label: '条件 (Condition)', icon: '?' },
   { type: 'TreeActionNode', label: '动作 (Action)', icon: '⚡' },
   { type: 'TreeScriptNode', label: '脚本 (Script)', icon: '</>' },
   { type: 'TreeDelayNode', label: '延迟 (Delay)', icon: '⏱' },
@@ -23,7 +24,6 @@ const ADD_NODE_TYPES = [
 
 export function useContextMenu() {
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
 
   const showMenu = useCallback((x: number, y: number, nodeId: number | null) => {
     setMenu({ x, y, nodeId })
@@ -39,16 +39,7 @@ export function useContextMenu() {
     return () => window.removeEventListener('click', handler)
   }, [hideMenu])
 
-  // Prevent the menu click from bubbling to the window handler
-  useEffect(() => {
-    if (!ref.current) return
-    const el = ref.current
-    const handler = (e: MouseEvent) => e.stopPropagation()
-    el.addEventListener('click', handler)
-    return () => el.removeEventListener('click', handler)
-  }, [menu])
-
-  return { menu, showMenu, hideMenu, ref }
+  return { menu, showMenu, hideMenu }
 }
 
 export function ContextMenu({ menu, hideMenu }: {
@@ -86,10 +77,25 @@ export function ContextMenu({ menu, hideMenu }: {
     hideMenu()
   }, [menu.nodeId, addSibling, hideMenu])
 
-  const handleDelete = useCallback(() => {
-    if (menu.nodeId !== null && menu.nodeId !== 0) deleteNode(menu.nodeId)
+  const handleDelete = useCallback(async () => {
+    if (menu.nodeId === null || menu.nodeId === 0) { hideMenu(); return }
+    // 带子树的删除先确认；叶子节点可撤销，直接删
+    const childCount = (node as any)?.Childs?.length ?? 0
+    if (childCount > 0) {
+      hideMenu()
+      const ok = await askConfirm({
+        title: '删除节点',
+        message: `节点「${node?.DisplayName || menu.nodeId}」包含 ${childCount} 个子节点，将一并删除。`,
+        confirmLabel: '一并删除',
+        danger: true
+      })
+      if (!ok) return
+      deleteNode(menu.nodeId)
+      return
+    }
+    deleteNode(menu.nodeId)
     hideMenu()
-  }, [menu.nodeId, deleteNode, hideMenu])
+  }, [menu.nodeId, node, deleteNode, hideMenu])
 
   const handleDuplicate = useCallback(() => {
     if (menu.nodeId !== null && menu.nodeId !== 0) duplicateNode(menu.nodeId)
@@ -111,10 +117,18 @@ export function ContextMenu({ menu, hideMenu }: {
     hideMenu()
   }, [menu.nodeId, toggleNodeEnabled, hideMenu])
 
+  // Escape 关闭菜单；菜单内点击不冒泡到 window（否则会触发 hideMenu 把自己关掉）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') hideMenu() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [hideMenu])
+
   return (
     <div
       className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl py-1 min-w-[210px] max-h-[80vh] overflow-y-auto"
       style={{ left: menu.x, top: menu.y }}
+      onClick={e => e.stopPropagation()}
     >
       {node && (
         <div className="px-3 py-1.5 text-[11px] text-gray-400 border-b border-gray-700">

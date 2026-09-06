@@ -51,13 +51,13 @@ export function createNodeSlice(set: SetFn): NodeSlice {
       })
     },
 
-    updateEntryNode: (entryGuid, nodeId, changes) => {
+    updateEntryNode: (entryGuid, nodeId, changes, undoTag) => {
       set((s) => {
         if (!s.doc) return
         const entry = getEntry(s.doc, entryGuid)
         const node: PtlNode | null = entry ? findNode(entry.EntryGroup, nodeId) : null
         if (!node) return
-        pushUndo(s)
+        pushUndo(s, undoTag)
         Object.assign(node, changes)
         s.isDirty = true
       })

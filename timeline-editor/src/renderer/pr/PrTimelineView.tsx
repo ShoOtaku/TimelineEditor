@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { PtlAnchor, PtlEntry } from '@shared/prTypes'
+import type { PtlAnchor } from '@shared/prTypes'
 import { PR_SYNC_TYPE_LABELS } from '@shared/prTypes'
 import { usePrStore } from '../store/prStore'
 import { useStore } from '../store'
 import { askConfirm } from '../store/dialogStore'
-import { formatPrTime, sortedAnchors, entriesOfAnchor, validatePtlDocument } from './prModel'
+import { formatPrTime, sortedAnchors, entriesOfAnchor, validatePtlDocument, countEntryNodes } from './prModel'
 import { PrNodeTree } from './PrNodeTree'
 
 function anchorIcon(a: PtlAnchor): string {
@@ -13,16 +13,6 @@ function anchorIcon(a: PtlAnchor): string {
   if (a.IsCommentAnchor) return '💬'
   if (a.IsTechnicalAnchor) return '🔧'
   return '⚓'
-}
-
-function countNodes(entry: PtlEntry): number {
-  let count = 0
-  function walk(n: { Children?: { Id: number }[] | null }) {
-    count++
-    for (const c of (n.Children ?? []) as { Children?: never[] | null }[]) walk(c)
-  }
-  walk(entry.EntryGroup)
-  return count
 }
 
 /** Center view: time-ordered anchors with their entries and expandable node trees */
@@ -39,6 +29,9 @@ export function PrTimelineView() {
   const duplicateAnchor = usePrStore(s => s.duplicateAnchor)
   const deleteEntry = usePrStore(s => s.deleteEntry)
   const duplicateEntry = usePrStore(s => s.duplicateEntry)
+  const clipboard = usePrStore(s => s.clipboard)
+  const copyEntry = usePrStore(s => s.copyEntry)
+  const pasteEntry = usePrStore(s => s.pasteEntry)
   const spellLookup = useStore(s => s.spellLookup)
 
   const [filter, setFilter] = useState('')
@@ -103,18 +96,25 @@ export function PrTimelineView() {
         >
           ＋ 锚点
         </button>
-        <div className="flex-1" />
         <button
-          onClick={() => setShowIssues(v => !v)}
-          className={`px-2.5 py-1 text-xs rounded transition-colors ${
-            issues.length === 0
-              ? 'bg-green-900/40 text-green-400'
-              : 'bg-red-900/50 text-red-300 hover:bg-red-800/60'
-          }`}
-          title="点击查看校验详情"
+          onClick={() => select({ kind: 'meta' })}
+          className="px-2.5 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+          title="编辑时间轴名称 / 作者 / 区域 ID / 变量等"
         >
-          {issues.length === 0 ? '✓ 校验通过' : `⚠ ${issues.length} 个问题`}
+          ℹ 信息
         </button>
+        <div className="flex-1" />
+        {issues.length === 0 ? (
+          <span className="px-2.5 py-1 text-xs rounded bg-green-900/40 text-green-400 select-none">✓ 校验通过</span>
+        ) : (
+          <button
+            onClick={() => setShowIssues(v => !v)}
+            className="px-2.5 py-1 text-xs rounded transition-colors bg-red-900/50 text-red-300 hover:bg-red-800/60"
+            title="点击查看校验详情"
+          >
+            {`⚠ ${issues.length} 个问题`}
+          </button>
+        )}
       </div>
 
       {/* Validation issues */}
@@ -135,8 +135,8 @@ export function PrTimelineView() {
         </div>
       )}
 
-      {/* Timeline rows */}
-      <div className="flex-1 overflow-auto pb-8">
+      {/* Timeline rows — 点击空白处回到时间轴信息 */}
+      <div className="flex-1 overflow-auto pb-8" onClick={() => select({ kind: 'meta' })}>
         {filteredAnchors.map(anchor => {
           const entries = entriesOfAnchor(doc, anchor.Guid)
           const isSelected = selection?.kind === 'anchor' && selection.guid === anchor.Guid
@@ -146,7 +146,7 @@ export function PrTimelineView() {
             <div key={anchor.Guid} className="border-b border-gray-800/60">
               {/* Anchor row */}
               <div
-                onClick={() => select({ kind: 'anchor', guid: anchor.Guid })}
+                onClick={(e) => { e.stopPropagation(); select({ kind: 'anchor', guid: anchor.Guid }) }}
                 className={`group flex items-center gap-2 px-2 py-1.5 cursor-pointer transition-colors border-l-2
                   ${isSelected ? 'bg-emerald-900/40 border-emerald-500' : 'border-transparent hover:bg-gray-800'}`}
               >
@@ -175,13 +175,22 @@ export function PrTimelineView() {
                   </span>
                 )}
                 <div className="flex-1" />
-                <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
                   {canHostEntries && (
                     <button
                       onClick={(e) => { e.stopPropagation(); addEntry(anchor.Guid) }}
                       className="px-1.5 text-[11px] text-gray-400 hover:text-emerald-300" title="添加行为组"
                     >
                       ＋行为组
+                    </button>
+                  )}
+                  {canHostEntries && clipboard?.kind === 'entry' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); pasteEntry(anchor.Guid) }}
+                      className="px-1.5 text-[11px] text-sky-400 hover:text-sky-300"
+                      title={`粘贴行为组「${clipboard.data.Name ?? '未命名'}」到该锚点（偏移自动收敛到本段内）`}
+                    >
+                      📋粘贴
                     </button>
                   )}
                   <button
@@ -219,7 +228,7 @@ export function PrTimelineView() {
                 return (
                   <div key={entry.Guid}>
                     <div
-                      onClick={() => select({ kind: 'entry', guid: entry.Guid })}
+                      onClick={(e) => { e.stopPropagation(); select({ kind: 'entry', guid: entry.Guid }) }}
                       className={`group flex items-center gap-1.5 pl-7 pr-2 py-1 cursor-pointer text-[12px] transition-colors border-l-2
                         ${entrySelected ? 'bg-emerald-900/40 border-emerald-500' : 'border-transparent hover:bg-gray-800/70'}`}
                     >
@@ -236,17 +245,36 @@ export function PrTimelineView() {
                       <span className={`truncate ${entry.Enabled ? 'text-gray-300' : 'text-gray-600 line-through'}`}>
                         {entry.Name || '(未命名行为组)'}
                       </span>
-                      <span className="text-[10px] text-gray-600 flex-shrink-0">{countNodes(entry)} 节点</span>
+                      <span className="text-[10px] text-gray-600 flex-shrink-0">{countEntryNodes(entry)} 节点</span>
                       <div className="flex-1" />
-                      <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => { e.stopPropagation(); duplicateEntry(entry.Guid) }}
-                          className="px-1 text-[11px] text-gray-400 hover:text-gray-200" title="复制行为组"
+                          className="px-1 text-[11px] text-gray-400 hover:text-gray-200" title="创建副本（同锚点）"
                         >
                           ⧉
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); deleteEntry(entry.Guid) }}
+                          onClick={(e) => { e.stopPropagation(); copyEntry(entry.Guid) }}
+                          className="px-1 text-[11px] text-gray-400 hover:text-sky-300" title="复制到剪贴板（可跨锚点粘贴，Ctrl+C / Ctrl+V）"
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const n = countEntryNodes(entry)
+                            if (n > 1) {
+                              const ok = await askConfirm({
+                                title: '删除行为组',
+                                message: `行为组「${entry.Name || '未命名'}」包含 ${n} 个节点，删除后可通过 Ctrl+Z 撤销。`,
+                                confirmLabel: '删除',
+                                danger: true
+                              })
+                              if (!ok) return
+                            }
+                            deleteEntry(entry.Guid)
+                          }}
                           className="px-1 text-[11px] text-red-500/70 hover:text-red-400" title="删除行为组"
                         >
                           🗑

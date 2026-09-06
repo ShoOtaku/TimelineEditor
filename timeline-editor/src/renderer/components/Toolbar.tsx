@@ -4,6 +4,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { EditorMode } from '../store/prStore'
+import { useStore } from '../store'
+import { usePrStore } from '../store/prStore'
 
 interface ToolbarProps {
   mode: EditorMode
@@ -31,8 +33,14 @@ export function Toolbar(props: ToolbarProps) {
       <Divider />
       <DocumentCommands isPr={isPr} props={props} />
       <Divider />
-      <HistoryCommands />
-      {!isPr && <AeCommands props={props} />}
+      <HistoryCommands isPr={isPr} />
+      <Divider />
+      <ToolbarCommand icon={Code2} label="脚本" title="切换脚本编辑器"
+        active={props.showScript} onClick={props.onToggleScript} />
+      {!isPr && (
+        <ToolbarCommand icon={ScanSearch} label="ACR" title="切换 ACR 类型浏览器"
+          active={props.showAcrViewer} onClick={props.onToggleAcrViewer} />
+      )}
       <div className="min-w-3 flex-1" />
       <UpdateCommand available={props.updateAvailable} onClick={props.onCheckUpdate} />
       <ToolbarIcon icon={Settings} label="设置" title="设置" onClick={props.onOpenSettings} />
@@ -66,21 +74,25 @@ function DocumentCommands({ isPr, props }: { isPr: boolean; props: ToolbarProps 
   </>
 }
 
-function HistoryCommands() {
-  const dispatch = (key: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: true }))
-  return <>
-    <ToolbarIcon icon={Undo2} label="撤销" title="撤销（Ctrl+Z）" onClick={() => dispatch('z')} />
-    <ToolbarIcon icon={Redo2} label="重做" title="重做（Ctrl+Y）" onClick={() => dispatch('y')} />
-  </>
-}
+function HistoryCommands({ isPr }: { isPr: boolean }) {
+  // 直接调 store —— 之前用合成 KeyboardEvent 转发，但事件不冒泡，按钮静默失效
+  const aeUndo = useStore(s => s.undo)
+  const aeRedo = useStore(s => s.redo)
+  const aeCanUndo = useStore(s => s.undoStack.length > 0)
+  const aeCanRedo = useStore(s => s.redoStack.length > 0)
+  const prUndo = usePrStore(s => s.undo)
+  const prRedo = usePrStore(s => s.redo)
+  const prCanUndo = usePrStore(s => s.undoStack.length > 0)
+  const prCanRedo = usePrStore(s => s.redoStack.length > 0)
 
-function AeCommands({ props }: { props: ToolbarProps }) {
+  const undo = isPr ? prUndo : aeUndo
+  const redo = isPr ? prRedo : aeRedo
+  const canUndo = isPr ? prCanUndo : aeCanUndo
+  const canRedo = isPr ? prCanRedo : aeCanRedo
+
   return <>
-    <Divider />
-    <ToolbarCommand icon={Code2} label="脚本" title="切换脚本编辑器"
-      active={props.showScript} onClick={props.onToggleScript} />
-    <ToolbarCommand icon={ScanSearch} label="ACR" title="切换 ACR 类型浏览器"
-      active={props.showAcrViewer} onClick={props.onToggleAcrViewer} />
+    <ToolbarIcon icon={Undo2} label="撤销" title="撤销（Ctrl+Z）" onClick={undo} disabled={!canUndo} />
+    <ToolbarIcon icon={Redo2} label="重做" title="重做（Ctrl+Y）" onClick={redo} disabled={!canRedo} />
   </>
 }
 
@@ -96,11 +108,11 @@ function Divider() {
   return <div className="mx-1 h-5 w-px bg-gray-700" aria-hidden="true" />
 }
 
-function ToolbarIcon({ icon: Icon, label, title, onClick }: {
-  icon: LucideIcon; label: string; title: string; onClick: () => void
+function ToolbarIcon({ icon: Icon, label, title, onClick, disabled }: {
+  icon: LucideIcon; label: string; title: string; onClick: () => void; disabled?: boolean
 }) {
   return (
-    <button type="button" onClick={onClick} className="icon-button" aria-label={label} title={title}>
+    <button type="button" onClick={onClick} disabled={disabled} className="icon-button" aria-label={label} title={title}>
       <Icon size={16} />
     </button>
   )

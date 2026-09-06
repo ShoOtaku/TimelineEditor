@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useRef, useState } from 'react'
+import { Component, useCallback, useEffect, useState } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { Sidebar } from './components/Sidebar'
 import { TreeView } from './components/TreeView'
@@ -42,6 +42,7 @@ import { DialogHost } from './components/DialogHost'
 import { PrSidebar } from './pr/PrSidebar'
 import { PrTimelineView } from './pr/PrTimelineView'
 import { PrPropertyPanel } from './pr/PrPropertyPanel'
+import { PrScriptPanel } from './pr/PrScriptPanel'
 
 export default function App() {
   const fileName = useStore(s => s.fileName)
@@ -68,14 +69,32 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showCactbotImport, setShowCactbotImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
-  const isResizingSidebar = useRef(false)
-  const isResizingPanel = useRef(false)
-  const isResizingScript = useRef(false)
 
   const isPr = editorMode === 'pr'
 
+  // Drag-to-resize helper: listeners are removed on mouseup (the old inline
+  // version leaked a new mousemove listener on every drag)
+  const startResize = useCallback((onMove: (ev: MouseEvent) => void) => {
+    const move = (ev: MouseEvent) => onMove(ev)
+    const up = () => {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+    }
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
+  }, [])
+
   const handleOpen = useCallback(async () => {
     if (isPr) {
+      if (prIsDirty) {
+        const ok = await askConfirm({
+          title: '放弃未保存的修改？',
+          message: '当前 PR 时间轴有未保存的修改，打开其他文件将丢失这些修改。',
+          confirmLabel: '放弃并打开',
+          danger: true
+        })
+        if (!ok) return
+      }
       const result = await window.electronAPI.openPrFileDialog()
       if (!result.cancelled && result.filePath) {
         const ok = await prLoadFile(result.filePath)
@@ -83,12 +102,21 @@ export default function App() {
       }
       return
     }
+    if (isDirty) {
+      const ok = await askConfirm({
+        title: '放弃未保存的修改？',
+        message: '当前时间轴有未保存的修改，打开其他文件将丢失这些修改。',
+        confirmLabel: '放弃并打开',
+        danger: true
+      })
+      if (!ok) return
+    }
     const result = await window.electronAPI.openFileDialog()
     if (!result.cancelled && result.filePath) {
-      await loadFile(result.filePath)
-      document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
+      const ok = await loadFile(result.filePath)
+      if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
     }
-  }, [isPr, loadFile, prLoadFile])
+  }, [isPr, isDirty, prIsDirty, loadFile, prLoadFile])
 
   const handleSave = useCallback(async () => {
     if (isPr) {
@@ -97,7 +125,8 @@ export default function App() {
       } else {
         const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
         if (!result.cancelled && result.filePath) {
-          await prSaveFile(result.filePath)
+          const ok = await prSaveFile(result.filePath)
+          if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
         }
       }
       return
@@ -107,7 +136,8 @@ export default function App() {
     } else {
       const result = await window.electronAPI.saveFileDialog(fileName || 'NewTriggerline.json')
       if (!result.cancelled && result.filePath) {
-        await saveFile(result.filePath)
+        const ok = await saveFile(result.filePath)
+        if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
       }
     }
   }, [isPr, filePath, fileName, saveFile, prFilePath, prFileName, prSaveFile])
@@ -116,13 +146,15 @@ export default function App() {
     if (isPr) {
       const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
       if (!result.cancelled && result.filePath) {
-        await prSaveFile(result.filePath)
+        const ok = await prSaveFile(result.filePath)
+        if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
       }
       return
     }
     const result = await window.electronAPI.saveFileDialog(fileName || 'NewTriggerline.json')
     if (!result.cancelled && result.filePath) {
-      await saveFile(result.filePath)
+      const ok = await saveFile(result.filePath)
+      if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
     }
   }, [isPr, fileName, saveFile, prFileName, prSaveFile])
 
@@ -152,15 +184,18 @@ export default function App() {
     const onOpen = () => handleOpen()
     const onSaveAs = () => handleSaveAs()
     const onToggleScript = () => setShowScript(s => !s)
+    const onOpenScript = () => setShowScript(true)
     document.addEventListener('editor:save', onSave)
     document.addEventListener('editor:open', onOpen)
     document.addEventListener('editor:saveAs', onSaveAs)
     document.addEventListener('editor:toggleScript', onToggleScript)
+    document.addEventListener('editor:openScript', onOpenScript)
     return () => {
       document.removeEventListener('editor:save', onSave)
       document.removeEventListener('editor:open', onOpen)
       document.removeEventListener('editor:saveAs', onSaveAs)
       document.removeEventListener('editor:toggleScript', onToggleScript)
+      document.removeEventListener('editor:openScript', onOpenScript)
     }
   }, [handleSave, handleOpen, handleSaveAs])
 
@@ -218,14 +253,9 @@ export default function App() {
         {/* Resizer: sidebar | canvas */}
         <div
           className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
-          onMouseDown={(e) => {
-            isResizingSidebar.current = true
-            document.addEventListener('mousemove', (ev) => {
-              if (!isResizingSidebar.current) return
-              setSidebarWidth(Math.max(160, Math.min(400, ev.clientX)))
-            })
-            document.addEventListener('mouseup', () => { isResizingSidebar.current = false }, { once: true })
-          }}
+          onMouseDown={() => startResize((ev) => {
+            setSidebarWidth(Math.max(160, Math.min(400, ev.clientX)))
+          })}
         />
 
         {/* Canvas + Script area */}
@@ -234,21 +264,16 @@ export default function App() {
             {isPr ? <PrTimelineView /> : <TreeView />}
           </div>
 
-          {!isPr && showScript && (
+          {showScript && (
             <>
               <div
                 className="h-1 bg-gray-700 hover:bg-blue-500 cursor-row-resize flex-shrink-0 transition-colors"
-                onMouseDown={(e) => {
-                  isResizingScript.current = true
-                  document.addEventListener('mousemove', (ev) => {
-                    if (!isResizingScript.current) return
-                    setScriptHeight(Math.max(150, window.innerHeight - ev.clientY))
-                  })
-                  document.addEventListener('mouseup', () => { isResizingScript.current = false }, { once: true })
-                }}
+                onMouseDown={() => startResize((ev) => {
+                  setScriptHeight(Math.max(150, Math.min(window.innerHeight - 200, window.innerHeight - ev.clientY)))
+                })}
               />
               <div style={{ height: scriptHeight }} className="flex-shrink-0 overflow-hidden">
-                <ScriptPanel />
+                {isPr ? <PrScriptPanel /> : <ScriptPanel />}
               </div>
             </>
           )}
@@ -257,14 +282,9 @@ export default function App() {
         {/* Resizer: canvas | property panel */}
         <div
           className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
-          onMouseDown={(e) => {
-            isResizingPanel.current = true
-            document.addEventListener('mousemove', (ev) => {
-              if (!isResizingPanel.current) return
-              setPanelWidth(Math.max(260, Math.min(500, window.innerWidth - ev.clientX)))
-            })
-            document.addEventListener('mouseup', () => { isResizingPanel.current = false }, { once: true })
-          }}
+          onMouseDown={() => startResize((ev) => {
+            setPanelWidth(Math.max(260, Math.min(500, window.innerWidth - ev.clientX)))
+          })}
         />
 
         {/* Property Panel / ACR Viewer */}

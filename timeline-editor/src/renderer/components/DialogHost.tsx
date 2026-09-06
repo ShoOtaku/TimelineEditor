@@ -20,6 +20,20 @@ export function DialogHost() {
     )
   }
 
+  if (request.kind === 'alert') {
+    return (
+      <ConfirmDialog
+        title={request.title}
+        message={request.message}
+        confirmLabel={request.confirmLabel ?? '知道了'}
+        danger={request.danger}
+        hideCancel
+        onConfirm={() => request.resolve()}
+        onCancel={() => request.resolve()}
+      />
+    )
+  }
+
   return (
     <PromptDialog
       title={request.title}

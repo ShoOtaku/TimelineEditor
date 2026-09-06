@@ -87,7 +87,8 @@ function TreeNodeRow({ node, depth, parentId, showMenu, onDropNode }: TreeNodeRo
     e.stopPropagation()
     if (hasScript) {
       selectScriptNode(node.Id)
-      document.dispatchEvent(new CustomEvent('editor:toggleScript'))
+      // 打开而不是切换：面板已打开时再点不应把它关掉
+      document.dispatchEvent(new CustomEvent('editor:openScript'))
     }
   }, [node.Id, hasScript, selectScriptNode])
 
@@ -244,6 +245,7 @@ function TreeNodeRow({ node, depth, parentId, showMenu, onDropNode }: TreeNodeRo
 
 export function TreeView() {
   const doc = useStore(s => s.doc)
+  const loadError = useStore(s => s.loadError)
   const selectNode = useStore(s => s.selectNode)
   const moveNode = useStore(s => s.moveNode)
   const getNodeById = useStore(s => s.getNodeById)
@@ -310,9 +312,12 @@ export function TreeView() {
   if (!doc) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-        <div className="text-center">
+        <div className="text-center max-w-md p-6">
           <div className="text-4xl mb-2">📂</div>
           <div>打开时间轴文件以查看树结构</div>
+          {loadError && (
+            <div className="mt-3 text-xs text-red-400 bg-red-950/40 border border-red-900 rounded p-2">{loadError}</div>
+          )}
         </div>
       </div>
     )

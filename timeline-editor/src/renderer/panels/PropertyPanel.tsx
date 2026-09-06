@@ -4,6 +4,8 @@ import type { TreeNode, AcrTypeDef } from '@shared/types'
 import { isComposite, getDisplayType } from '@shared/types'
 import { ConditionEditor } from './ConditionEditor'
 import { ActionEditor } from './ActionEditor'
+import { DocMetaPanel } from './DocMetaPanel'
+import { askConfirm } from '../store/dialogStore'
 import {
   AE_CONDITION_SPECS, AE_ACTION_SPECS, createAeConditionDefault, createAeActionDefault
 } from '@shared/aeAssistSpecs'
@@ -11,6 +13,7 @@ import {
 export function PropertyPanel() {
   const doc = useStore(s => s.doc)
   const selectedNodeId = useStore(s => s.selectedNodeId)
+  const selectNode = useStore(s => s.selectNode)
   const updateNode = useStore(s => s.updateNode)
   const deleteNode = useStore(s => s.deleteNode)
   const toggleNodeEnabled = useStore(s => s.toggleNodeEnabled)
@@ -65,12 +68,26 @@ export function PropertyPanel() {
   }, [selectedNodeId, updateNode])
 
   if (!node) {
+    if (doc) {
+      // 未选中节点 → 编辑时间轴级元数据（与 PR 编辑器一致）
+      return (
+        <div className="h-full flex flex-col bg-gray-800 overflow-hidden">
+          <div className="p-3 border-b border-gray-700 flex-shrink-0">
+            <div className="text-sm font-semibold text-gray-200 truncate">{doc.Name || '时间轴信息'}</div>
+            <div className="text-[10px] text-gray-500">Meta · 点击树中节点可编辑节点属性</div>
+          </div>
+          <div className="flex-1 overflow-auto p-3">
+            <DocMetaPanel />
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="h-full flex items-center justify-center text-gray-500 text-sm p-4 text-center">
         <div>
           <div className="text-4xl mb-2">📋</div>
-          <div>选择节点以编辑属性</div>
-          <div className="text-xs mt-1 text-gray-600">点击左侧树中的任意节点</div>
+          <div>打开时间轴文件以编辑</div>
+          <div className="text-xs mt-1 text-gray-600">从左侧选择 Triggerlines 目录中的文件</div>
         </div>
       </div>
     )
@@ -91,15 +108,36 @@ export function PropertyPanel() {
         </div>
         <div className="flex gap-1">
           <button
+            onClick={() => selectNode(null)}
+            className="px-2 py-1 text-[11px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+            title="查看时间轴信息"
+          >
+            ℹ 信息
+          </button>
+          <button
             onClick={() => toggleNodeEnabled(selectedNodeId!)}
             className={`px-2 py-1 text-[11px] rounded ${node.Enable ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}
+            title={`点击${node.Enable ? '禁用' : '启用'}此节点（空格键）`}
           >
             {node.Enable ? '已启用' : '已禁用'}
           </button>
           {selectedNodeId !== 0 && (
             <button
-              onClick={() => deleteNode(selectedNodeId!)}
+              onClick={async () => {
+                const childCount = (node as any).Childs?.length ?? 0
+                if (childCount > 0) {
+                  const ok = await askConfirm({
+                    title: '删除节点',
+                    message: `节点「${node.DisplayName || selectedNodeId}」包含 ${childCount} 个子节点，将一并删除。`,
+                    confirmLabel: '一并删除',
+                    danger: true
+                  })
+                  if (!ok) return
+                }
+                deleteNode(selectedNodeId!)
+              }}
               className="px-2 py-1 text-[11px] bg-red-900/50 hover:bg-red-800 text-red-300 rounded"
+              title="删除节点（可 Ctrl+Z 撤销）"
             >
               🗑
             </button>
@@ -516,7 +554,7 @@ function createDefaultAction(type: string, acrTypes?: AcrTypeDef[]): any {
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] font-medium text-gray-500 mb-1">{label}</div>
+      <div className="text-[10px] font-medium text-gray-400 mb-1">{label}</div>
       {children}
     </div>
   )

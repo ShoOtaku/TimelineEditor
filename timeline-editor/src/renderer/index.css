@@ -36,8 +36,8 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
   background: #1f2937;

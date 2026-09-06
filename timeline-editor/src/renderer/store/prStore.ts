@@ -1,14 +1,16 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { isPtlDocument } from '@shared/prTypes'
+import type { PtlEntry, PtlNode } from '@shared/prTypes'
 import { createEmptyPtlDocument } from '../pr/prModel'
 import {
   addAnchorToDoc, deleteAnchorFromDoc, duplicateAnchorInDoc,
-  addEntryToDoc, duplicateEntryInDoc
+  addEntryToDoc, duplicateEntryInDoc, pasteEntryToDoc, pasteNodeToEntry
 } from '../pr/prMutations'
 import type { PrStore, PrUndoEntry } from './prStoreTypes'
 import { pushUndo, getEntry } from './prStoreTypes'
 import { createNodeSlice } from './prNodeSlice'
+import { askAlert } from './dialogStore'
 
 export type { PrSelection, EditorMode, PrStore } from './prStoreTypes'
 
@@ -29,17 +31,23 @@ export const usePrStore = create<PrStore>()(
     collapsedNodes: {},
     undoStack: [],
     redoStack: [],
+    scriptTarget: 'node',
+
+    editPrOpenerScript: () => set({ scriptTarget: 'opener' }),
 
     loadFile: async (path) => {
       const result = await window.electronAPI.readFile(path)
+      const fileName = path.split(/[/\\]/).pop() || path
       if (!result.success || !result.content) {
         set({ loadError: `读取文件失败: ${result.error ?? '未知错误'}` })
+        askAlert({ title: '打开失败', message: `无法读取 ${fileName}\n${result.error ?? ''}`, danger: true })
         return false
       }
       try {
         const json = JSON.parse(result.content)
         if (!isPtlDocument(json)) {
           set({ loadError: '该文件不是 PromeRotation 时间轴格式（缺少 Anchors/Meta）' })
+          askAlert({ title: '打开失败', message: `${fileName} 不是 PromeRotation 时间轴格式（缺少 Anchors/Meta）`, danger: true })
           return false
         }
         set({
@@ -49,6 +57,7 @@ export const usePrStore = create<PrStore>()(
           isDirty: false,
           loadError: null,
           selection: { kind: 'meta' },
+          scriptTarget: 'node',
           expandedEntries: {},
           collapsedNodes: {},
           undoStack: [],
@@ -57,20 +66,23 @@ export const usePrStore = create<PrStore>()(
         return true
       } catch (err) {
         set({ loadError: `JSON 解析失败: ${err}` })
+        askAlert({ title: '打开失败', message: `${fileName} 不是有效的 JSON 文件\n${err}`, danger: true })
         return false
       }
     },
 
     saveFile: async (path) => {
       const { doc } = get()
-      if (!doc) return
+      if (!doc) return false
       const content = JSON.stringify(doc, null, 2)
       const result = await window.electronAPI.writeFile(path, content)
       if (result.success) {
         set({ filePath: path, fileName: path.split(/[/\\]/).pop() || null, isDirty: false })
-      } else {
-        console.error('Failed to save PTL file:', result.error)
+        return true
       }
+      console.error('Failed to save PTL file:', result.error)
+      askAlert({ title: '保存失败', message: `无法写入 ${path}\n${result.error ?? '未知错误'}`, danger: true })
+      return false
     },
 
     newDocument: (name) => {
@@ -81,6 +93,7 @@ export const usePrStore = create<PrStore>()(
         isDirty: true,
         loadError: null,
         selection: { kind: 'meta' },
+        scriptTarget: 'node',
         expandedEntries: {},
         collapsedNodes: {},
         undoStack: [],
@@ -97,6 +110,7 @@ export const usePrStore = create<PrStore>()(
         isDirty: true,
         loadError: null,
         selection: { kind: 'meta' },
+        scriptTarget: 'node',
         expandedEntries: {},
         collapsedNodes: {},
         undoStack: [],
@@ -109,6 +123,7 @@ export const usePrStore = create<PrStore>()(
     select: (sel) => {
       set((s) => {
         s.selection = sel
+        s.scriptTarget = 'node'
         if (sel?.kind === 'entry') s.expandedEntries[sel.guid] = true
         else if (sel?.kind === 'node') s.expandedEntries[sel.entryGuid] = true
       })
@@ -128,11 +143,20 @@ export const usePrStore = create<PrStore>()(
       set((s) => { s.collapsedNodes[key] = !s.collapsedNodes[key] })
     },
 
-    updateMeta: (changes) => {
+    updateMeta: (changes, undoTag) => {
       set((s) => {
         if (!s.doc) return
-        pushUndo(s)
+        pushUndo(s, undoTag)
         Object.assign(s.doc.Meta, changes)
+        s.isDirty = true
+      })
+    },
+
+    updateVariables: (variables, undoTag) => {
+      set((s) => {
+        if (!s.doc) return
+        pushUndo(s, undoTag)
+        s.doc.Variables = variables
         s.isDirty = true
       })
     },
@@ -246,6 +270,51 @@ export const usePrStore = create<PrStore>()(
         pushUndo(s)
         const clone = duplicateEntryInDoc(s.doc, guid)
         if (clone) s.selection = { kind: 'entry', guid: clone.Guid }
+        s.isDirty = true
+      })
+    },
+
+    clipboard: null,
+
+    copyEntry: (guid) => {
+      const entry = get().doc ? getEntry(get().doc!, guid) : undefined
+      if (!entry) return
+      // Deep-clone out of the Immer-frozen state
+      set({ clipboard: { kind: 'entry', data: JSON.parse(JSON.stringify(entry)) } })
+    },
+
+    copyNode: (entryGuid, nodeId) => {
+      const doc = get().doc
+      const entry = doc ? getEntry(doc, entryGuid) : undefined
+      if (!entry) return
+      let target: PtlNode | null = null
+      const walk = (n: PtlNode) => { if (n.Id === nodeId) target = n; (n.Children ?? []).forEach(walk) }
+      walk(entry.EntryGroup)
+      if (!target) return
+      set({ clipboard: { kind: 'node', data: JSON.parse(JSON.stringify(target)) } })
+    },
+
+    pasteEntry: (anchorGuid) => {
+      set((s) => {
+        if (!s.doc || s.clipboard?.kind !== 'entry') return
+        pushUndo(s)
+        const clone = pasteEntryToDoc(s.doc, anchorGuid, s.clipboard.data as PtlEntry)
+        if (!clone) { s.undoStack.pop(); return }
+        s.selection = { kind: 'entry', guid: clone.Guid }
+        s.expandedEntries[clone.Guid] = true
+        s.isDirty = true
+      })
+    },
+
+    pasteNode: (entryGuid, targetNodeId, position = 'after') => {
+      set((s) => {
+        if (!s.doc || s.clipboard?.kind !== 'node') return
+        const entry = getEntry(s.doc, entryGuid)
+        if (!entry) return
+        pushUndo(s)
+        const clone = pasteNodeToEntry(entry, s.clipboard.data as PtlNode, targetNodeId, position)
+        if (!clone) { s.undoStack.pop(); return }
+        s.selection = { kind: 'node', entryGuid, nodeId: clone.Id }
         s.isDirty = true
       })
     },

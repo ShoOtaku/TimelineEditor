@@ -64,6 +64,9 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
   const updateEntryNode = usePrStore(s => s.updateEntryNode)
 
   const moveEntryNodeTo = usePrStore(s => s.moveEntryNodeTo)
+  const clipboard = usePrStore(s => s.clipboard)
+  const copyNode = usePrStore(s => s.copyNode)
+  const pasteNode = usePrStore(s => s.pasteNode)
 
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [submenu, setSubmenu] = useState<'child' | 'sibling' | null>(null)
@@ -284,9 +287,28 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
               setMenu(null)
             }}
           />
+          <div className="border-t border-gray-700 my-1" />
+          <MenuItem
+            label="复制到剪贴板"
+            suffix="Ctrl+C"
+            onClick={() => { copyNode(entryGuid, menuNode.nodeId); setMenu(null) }}
+          />
+          {clipboard?.kind === 'node' && menuNode.composite && (
+            <MenuItem
+              label={`粘贴为子节点（${clipboard.data.Name || '节点'}）`}
+              suffix="Ctrl+V"
+              onClick={() => { pasteNode(entryGuid, menuNode.nodeId, 'inside'); setMenu(null) }}
+            />
+          )}
+          {clipboard?.kind === 'node' && !menuNode.isRoot && (
+            <MenuItem
+              label={`粘贴到后方（${clipboard.data.Name || '节点'}）`}
+              onClick={() => { pasteNode(entryGuid, menuNode.nodeId, 'after'); setMenu(null) }}
+            />
+          )}
           {!menuNode.isRoot && (
             <>
-              <MenuItem label="复制节点" onClick={() => { duplicateEntryNode(entryGuid, menuNode.nodeId); setMenu(null) }} />
+              <MenuItem label="创建副本" onClick={() => { duplicateEntryNode(entryGuid, menuNode.nodeId); setMenu(null) }} />
               <MenuItem label="上移" disabled={!menuNode.canUp} onClick={() => { moveEntryNode(entryGuid, menuNode.nodeId, -1); setMenu(null) }} />
               <MenuItem label="下移" disabled={!menuNode.canDown} onClick={() => { moveEntryNode(entryGuid, menuNode.nodeId, 1); setMenu(null) }} />
               <div className="border-t border-gray-700 my-1" />

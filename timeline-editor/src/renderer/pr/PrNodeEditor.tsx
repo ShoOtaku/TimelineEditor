@@ -159,12 +159,14 @@ export function PrNodeEditor({ entryGuid, node }: { entryGuid: string; node: Ptl
             <PrField label="持续时间 (秒)" hint="0 = 由脚本自行结束">
               <PrNumberInput value={node.Duration ?? null} onChange={v => update({ Duration: v })} />
             </PrField>
-            <PrField label="C# 脚本">
-              <textarea
-                value={node.Script ?? ''}
-                onChange={e => update({ Script: e.target.value })}
-                className="field-input font-mono !text-[11px]" rows={8} spellCheck={false}
-              />
+            <PrField label="C# 脚本" hint={node.Script ? `${node.Script.split('\n').length} 行 · ${node.Script.length} 字符` : '未设置'}>
+              <button
+                onClick={() => document.dispatchEvent(new CustomEvent('editor:openScript'))}
+                className="w-full px-2 py-1.5 text-[12px] bg-purple-900/50 hover:bg-purple-800/60 text-purple-200 rounded transition-colors"
+                title="在底部 Monaco 面板中编辑此节点的 C# 脚本"
+              >
+                {'</>'} 在脚本面板中编辑
+              </button>
             </PrField>
           </>
         )}

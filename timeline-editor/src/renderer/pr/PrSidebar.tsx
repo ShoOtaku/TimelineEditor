@@ -130,7 +130,7 @@ export function PrSidebar() {
         {files.length === 0 && (
           <div className="p-3 text-sm text-gray-500 italic">
             目录为空或不存在
-            <div className="text-[11px] mt-1 text-gray-600">可通过工具栏 ⚙ PR目录 选择 PureTimelines 文件夹</div>
+            <div className="text-[11px] mt-1 text-gray-600">可通过 设置 → PromeRotation 目录 选择 PureTimelines 文件夹</div>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '../store'
+import { askConfirm } from '../store/dialogStore'
 
 interface FileEntry {
   name: string
@@ -14,6 +15,7 @@ export function Sidebar() {
   const [currentDir, setCurrentDir] = useState<string>('')
   const loadFile = useStore(s => s.loadFile)
   const filePath = useStore(s => s.filePath)
+  const isDirty = useStore(s => s.isDirty)
 
   const loadDirectory = useCallback(async (dir: string) => {
     const result = await window.electronAPI.listDir(dir)
@@ -64,10 +66,20 @@ export function Sidebar() {
     if (entry.isDirectory) {
       loadDirectory(entry.path)
     } else {
-      await loadFile(entry.path)
-      document.title = `Timeline Editor - ${entry.name}`
+      if (entry.path === filePath) return
+      if (isDirty) {
+        const ok = await askConfirm({
+          title: '放弃未保存的修改？',
+          message: '当前时间轴有未保存的修改，打开其他文件将丢失这些修改。',
+          confirmLabel: '放弃并打开',
+          danger: true
+        })
+        if (!ok) return
+      }
+      const ok = await loadFile(entry.path)
+      if (ok) document.title = `Timeline Editor - ${entry.name}`
     }
-  }, [loadFile, loadDirectory])
+  }, [loadFile, loadDirectory, isDirty, filePath])
 
   const handleGoUp = useCallback(() => {
     if (currentDir === defaultDir) return
@@ -80,9 +92,18 @@ export function Sidebar() {
   return (
     <div className="h-full flex flex-col bg-gray-800">
       <div className="p-2 border-b border-gray-700">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Files</div>
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">文件</div>
+          <button
+            onClick={() => currentDir && loadDirectory(currentDir)}
+            className="text-gray-500 hover:text-gray-200 px-1 text-xs"
+            title="刷新文件列表"
+          >
+            ⟳
+          </button>
+        </div>
         <div className="text-[10px] text-gray-500 truncate" title={currentDir}>
-          {currentDir || 'Loading...'}
+          {currentDir || '加载中…'}
         </div>
       </div>
       <div className="flex-1 overflow-auto">
@@ -109,7 +130,7 @@ export function Sidebar() {
           </div>
         ))}
         {files.length === 0 && currentDir === defaultDir && (
-          <div className="p-3 text-sm text-gray-500 italic">No files found</div>
+          <div className="p-3 text-sm text-gray-500 italic">没有找到文件</div>
         )}
       </div>
     </div>
