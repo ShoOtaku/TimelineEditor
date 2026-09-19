@@ -52,6 +52,14 @@ export interface PtlQtState {
   [key: string]: unknown
 }
 
+/** Timeline/Core/TimelineDtos.cs — SkillGroupEntryDto (EnqueueSkillGroup.Skills) */
+export interface PtlSkillGroupEntry {
+  ActionId?: number | null
+  SkillType?: string | null
+  Target?: string | null
+  [key: string]: unknown
+}
+
 export interface PtlCondition {
   Type?: string | null
   ActionId?: number | null
@@ -71,6 +79,7 @@ export interface PtlAction {
   Type?: string | null
   Qt?: string | null
   QtStates?: PtlQtState[] | null
+  Skills?: PtlSkillGroupEntry[] | null
   Enabled?: boolean
   Message?: string | null
   ActionId?: number | null
@@ -325,6 +334,47 @@ export const PR_EFFECT_TARGET_MODE_LABELS: Record<string, string> = {
 export const PR_POSITION_CHECK_MODES = ['XAxis', 'YAxis', 'ZAxis', 'CoordinateRange'] as const
 export const PR_POSITION_CHECK_MODE_LABELS: Record<string, string> = {
   XAxis: 'X 轴', YAxis: 'Y 轴', ZAxis: 'Z 轴', CoordinateRange: '坐标范围'
+}
+
+/** Timeline/Conditions/SelfJobCondition.cs — Params.mode */
+export const PR_SELF_JOB_MODES = ['Category', 'Job'] as const
+export const PR_SELF_JOB_MODE_LABELS: Record<string, string> = {
+  Category: '按职业类别', Job: '按具体职业'
+}
+
+/** Timeline/Core/TimelineJobCatalog.cs — TimelineJobCategory (Params.category) */
+export const PR_JOB_CATEGORIES = ['Tank', 'Healer', 'MeleeDps', 'RangedDps', 'CasterDps'] as const
+export const PR_JOB_CATEGORY_LABELS: Record<string, string> = {
+  Tank: 'T', Healer: '奶', MeleeDps: '近战DPS', RangedDps: '远敏DPS', CasterDps: '法系DPS'
+}
+
+/**
+ * DownloadSystem/ACR/AcrDownloadModels.cs — AcrJobCatalog.Jobs (SelfJob Params.job)。
+ * 顺序即插件下拉顺序（T→奶→近战→远敏→法系），值为职业缩写。
+ */
+export const PR_JOB_ABBRS = [
+  'WAR', 'PLD', 'DRK', 'GNB',
+  'WHM', 'SCH', 'AST', 'SGE',
+  'MNK', 'DRG', 'NIN', 'SAM', 'RPR', 'VPR',
+  'BRD', 'MCH', 'DNC',
+  'BLM', 'SMN', 'RDM', 'PCT', 'BLU',
+  'BST'
+] as const
+export const PR_JOB_ABBR_LABELS: Record<string, string> = {
+  WAR: '战士 (WAR)', PLD: '骑士 (PLD)', DRK: '暗黑骑士 (DRK)', GNB: '绝枪战士 (GNB)',
+  WHM: '白魔法师 (WHM)', SCH: '学者 (SCH)', AST: '占星术士 (AST)', SGE: '贤者 (SGE)',
+  MNK: '武僧 (MNK)', DRG: '龙骑士 (DRG)', NIN: '忍者 (NIN)', SAM: '武士 (SAM)',
+  RPR: '钐镰客 (RPR)', VPR: '蝰蛇剑士 (VPR)',
+  BRD: '吟游诗人 (BRD)', MCH: '机工士 (MCH)', DNC: '舞者 (DNC)',
+  BLM: '黑魔法师 (BLM)', SMN: '召唤师 (SMN)', RDM: '赤魔法师 (RDM)',
+  PCT: '绘灵法师 (PCT)', BLU: '青魔法师 (BLU)',
+  BST: '驯兽师 (BST)'
+}
+
+/** Timeline/Actions/ShowHintAction.cs — HintHelper.HintType (ActionDto.Mode) */
+export const PR_HINT_MODES = ['Info', 'Warning'] as const
+export const PR_HINT_MODE_LABELS: Record<string, string> = {
+  Info: '蓝色（提示）', Warning: '红色（警告）'
 }
 
 /** Data/PromeSettings.cs — TimelineRole */

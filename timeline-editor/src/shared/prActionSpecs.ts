@@ -7,6 +7,7 @@ import {
   PR_POTION_MODES, PR_POTION_MODE_LABELS, PR_SELECTOR_MODES, PR_SELECTOR_MODE_LABELS,
   PR_HEADING_MODES, PR_HEADING_MODE_LABELS, PR_VAR_ACTION_MODES, PR_VAR_ACTION_MODE_LABELS,
   PR_TOGGLE_ACR_MODES, PR_TOGGLE_ACR_MODE_LABELS, PR_ROLES,
+  PR_HINT_MODES, PR_HINT_MODE_LABELS,
   PR_XSZBOX_PRESETS, PR_XSZBOX_PRESET_LABELS
 } from './prTypes'
 import type { PrFieldSpec, PrTypeSpec } from './prSpecTypes'
@@ -45,6 +46,16 @@ export const PR_ACTION_SPECS: PrTypeSpec[] = [
       ...SKILL_FIELDS,
       { path: 'HighPriority', label: '高优先级', kind: 'bool' },
       ...NPC_TARGET_FIELDS
+    ]
+  },
+  {
+    key: 'enqueueskillgroup', label: '加入技能组',
+    fields: [
+      {
+        path: 'Skills', label: '技能列表', kind: 'skillRows',
+        hint: '整组作为一个指令进入队列'
+      },
+      { path: 'HighPriority', label: '高优先级', kind: 'bool' }
     ]
   },
   {
@@ -158,6 +169,17 @@ export const PR_ACTION_SPECS: PrTypeSpec[] = [
   {
     key: 'customlog', label: '输出日志',
     fields: [{ path: 'Message', label: '日志内容', kind: 'text', def: '' }]
+  },
+  {
+    key: 'showhint', label: '横幅消息提示',
+    fields: [
+      { path: 'Message', label: '消息内容', kind: 'text', def: '', hint: '在屏幕中央显示横幅提示' },
+      { path: 'Duration', label: '显示时间 (秒)', kind: 'float', def: 3, hint: '0.5~30 秒' },
+      {
+        path: 'Mode', label: '颜色样式', kind: 'enum',
+        options: PR_HINT_MODES, optionLabels: PR_HINT_MODE_LABELS, def: 'Info'
+      }
+    ]
   },
   {
     key: 'csharpaction', label: 'C# 行为',

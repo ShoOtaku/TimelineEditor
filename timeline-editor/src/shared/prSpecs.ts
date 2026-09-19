@@ -31,7 +31,7 @@ export function actionLabel(type: string | null | undefined): string {
 
 /** Full DTO field lists — used by the "raw fields" fallback views */
 export const PR_DTO_ACTION_FIELDS = [
-  'Type', 'Qt', 'QtStates', 'Enabled', 'Message', 'ActionId', 'SkillType', 'Target',
+  'Type', 'Qt', 'QtStates', 'Skills', 'Enabled', 'Message', 'ActionId', 'SkillType', 'Target',
   'HighPriority', 'TargetMode', 'TargetDataId', 'TargetName', 'TargetNearest', 'Mode',
   'PositionX', 'PositionY', 'PositionZ', 'Script', 'Params', 'Duration'
 ] as const

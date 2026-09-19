@@ -16,6 +16,7 @@ export type PrFieldKind =
   | 'target'
   | 'script'
   | 'qtStates'
+  | 'skillRows'  // editable Skills list (EnqueueSkillGroup): id/type/target rows
   | 'position'    // renders PositionX/Y/Z as one row
 
 export interface PrFieldSpec {

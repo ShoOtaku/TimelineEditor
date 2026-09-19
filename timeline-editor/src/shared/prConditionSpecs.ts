@@ -4,7 +4,9 @@
 import {
   PR_COMPARE_MODES, PR_EFFECT_SOURCE_MODES, PR_EFFECT_SOURCE_MODE_LABELS,
   PR_EFFECT_TARGET_MODES, PR_EFFECT_TARGET_MODE_LABELS,
-  PR_POSITION_CHECK_MODES, PR_POSITION_CHECK_MODE_LABELS, PR_ROLES
+  PR_POSITION_CHECK_MODES, PR_POSITION_CHECK_MODE_LABELS, PR_ROLES,
+  PR_SELF_JOB_MODES, PR_SELF_JOB_MODE_LABELS,
+  PR_JOB_CATEGORIES, PR_JOB_CATEGORY_LABELS, PR_JOB_ABBRS, PR_JOB_ABBR_LABELS
 } from './prTypes'
 import type { PrTypeSpec } from './prSpecTypes'
 import { IMMEDIATE, NEGATE, COMPARE, TARGET } from './prSpecTypes'
@@ -118,6 +120,25 @@ export const PR_CONDITION_SPECS: PrTypeSpec[] = [
   {
     key: 'timelinerole', label: '职能检测',
     fields: [{ path: 'Params.role', label: '职能', kind: 'enum', options: PR_ROLES, def: 'MT', hint: '游戏内需在 PromeRotation 面板的「当前职能」下拉选择角色（或聊天输入 /e MT），未设置时该条件恒不成立' }]
+  },
+  {
+    key: 'selfjob', label: '检测自身职业',
+    fields: [
+      {
+        path: 'Params.mode', label: '检测方式', kind: 'enum',
+        options: PR_SELF_JOB_MODES, optionLabels: PR_SELF_JOB_MODE_LABELS, def: 'Category'
+      },
+      {
+        path: 'Params.category', label: '职业类别', kind: 'enum',
+        options: PR_JOB_CATEGORIES, optionLabels: PR_JOB_CATEGORY_LABELS, def: 'Tank',
+        showWhen: { path: 'Params.mode', equals: ['Category'] }
+      },
+      {
+        path: 'Params.job', label: '具体职业', kind: 'enum',
+        options: PR_JOB_ABBRS, optionLabels: PR_JOB_ABBR_LABELS, def: 'WAR',
+        showWhen: { path: 'Params.mode', equals: ['Job'] }
+      }
+    ]
   },
   {
     key: 'TimelineVariable', label: '变量条件',

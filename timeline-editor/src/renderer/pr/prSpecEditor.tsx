@@ -1,8 +1,10 @@
 // Spec-driven renderer for condition/action DTO fields.
 // Reads/writes both plain DTO fields and Params.<key> dictionary entries.
-import type { PtlAction, PtlCondition, PtlQtState } from '@shared/prTypes'
+import type { PtlAction, PtlCondition, PtlQtState, PtlSkillGroupEntry } from '@shared/prTypes'
+import { PR_SKILL_TYPES, PR_SKILL_TYPE_LABELS, PR_TARGET_TYPES, PR_TARGET_TYPE_LABELS } from '@shared/prTypes'
 import type { PrFieldSpec, PrTypeSpec } from '@shared/prSpecs'
 import { PrField, PrCheckbox, PrNumberInput, SpellNameHint } from './prFields'
+import { useStore } from '../store'
 
 type Dto = PtlAction | PtlCondition
 
@@ -59,7 +61,26 @@ export function applySpecDefaults<T extends Dto>(dto: T, spec: PrTypeSpec): T {
     out = setPath(out, f.path, value) as T
   }
   if (spec.fields.some(f => f.kind === 'qtStates')) out = { ...out, QtStates: [] }
+  if (spec.fields.some(f => f.kind === 'skillRows')) out = { ...out, Skills: [createSkillGroupRow()] }
   return out
+}
+
+/** Plugin default row (NodeEditorDefaults.CreateSkillGroupEntry): 0 / Gcd / Target */
+function createSkillGroupRow(): PtlSkillGroupEntry {
+  return { ActionId: 0, SkillType: 'Gcd', Target: 'Target' }
+}
+
+/**
+ * Best-effort Gcd/OffGcd derivation from the exported Action table
+ * (t: 0=魔法 2=战技 → Gcd, 1=能力 → OffGcd) — mirrors the in-game editor's
+ * Auto mode. Returns null when the id is unknown, leaving the row untouched.
+ */
+function deriveSkillType(actionId: number | null, lookup: Record<string, { t: number }> | null): string | null {
+  if (actionId === null || !lookup) return null
+  const t = lookup[String(actionId)]?.t
+  if (t === 0 || t === 2) return 'Gcd'
+  if (t === 1) return 'OffGcd'
+  return null
 }
 
 function shouldShow(dto: Dto, field: PrFieldSpec): boolean {
@@ -162,6 +183,9 @@ function SpecField({ dto, field, onChange }: {
       )
     }
 
+    case 'skillRows':
+      return <SkillRowsField dto={dto as PtlAction} field={field} onChange={onChange} />
+
     case 'enum':
     case 'compare':
     case 'target':
@@ -235,8 +259,123 @@ function SpecField({ dto, field, onChange }: {
   }
 }
 
-// ---------- whole-spec renderer ----------
+// ---------- skill group rows (EnqueueSkillGroup) ----------
 
+function SkillRowSelect({ value, options, labels, onChange }: {
+  value: string
+  options: readonly string[]
+  labels: Record<string, string>
+  onChange: (v: string) => void
+}) {
+  const known = options.includes(value)
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="field-input !py-0.5 !text-[11px] min-w-0"
+    >
+      {options.map(o => <option key={o} value={o}>{labels[o] ?? o}</option>)}
+      {!known && <option value={value}>{value || '(未设置)'}（未识别）</option>}
+    </select>
+  )
+}
+
+/** Rows editor for ActionDto.Skills — mirrors the plugin's DrawEnqueueSkillGroup */
+function SkillRowsField({ dto, field, onChange }: {
+  dto: PtlAction
+  field: PrFieldSpec
+  onChange: (next: Dto) => void
+}) {
+  const spellLookup = useStore(s => s.spellLookup)
+  const rows = dto.Skills ?? []
+  const setRows = (next: PtlSkillGroupEntry[]) => onChange({ ...dto, Skills: next })
+
+  const setRow = (i: number, changes: Partial<PtlSkillGroupEntry>) =>
+    setRows(rows.map((r, ri) => ri === i ? { ...r, ...changes } : r))
+
+  const onIdChange = (i: number, id: number | null) => {
+    const row = rows[i]
+    if (!row) return
+    const next: PtlSkillGroupEntry = { ...row, ActionId: id }
+    // 与游戏内编辑器的 Auto 一致：按技能表自动带出 GCD/能力技，用户仍可手动改
+    const derived = deriveSkillType(id, spellLookup)
+    if (derived) next.SkillType = derived
+    setRows(rows.map((r, ri) => ri === i ? next : r))
+  }
+
+  const moveRow = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= rows.length) return
+    const next = [...rows]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setRows(next)
+  }
+
+  return (
+    <PrField label={`${field.label} (${rows.length})`} hint={field.hint ?? '从上到下依次执行'}>
+      <div className="space-y-1.5">
+        {rows.map((row, i) => {
+          if (!row) {
+            return (
+              <div key={i} className="flex items-center gap-1 text-[11px] text-red-400/90">
+                <span className="flex-1">第 {i + 1} 行为空，请删除后重新添加</span>
+                <button
+                  onClick={() => setRows(rows.filter((_, ri) => ri !== i))}
+                  className="px-1 text-red-500/70 hover:text-red-400" title="删除空行"
+                >
+                  ✕
+                </button>
+              </div>
+            )
+          }
+          const id = typeof row.ActionId === 'number' ? row.ActionId : null
+          const name = id ? spellLookup?.[String(id)]?.n : undefined
+          return (
+            <div key={i} className="rounded border border-gray-700/60 p-1 space-y-1">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-gray-500 w-3 flex-shrink-0">{i + 1}</span>
+                <div className="w-[76px] flex-shrink-0">
+                  <PrNumberInput integer value={id} onChange={v => onIdChange(i, v)} placeholder="技能ID" />
+                </div>
+                <span className={`text-[10px] truncate flex-1 ${name ? 'text-emerald-400/90' : 'text-gray-600'}`}>
+                  {id ? (name ? `✦ ${name}` : '未找到技能') : '未设置'}
+                </span>
+                <button onClick={() => moveRow(i, -1)} disabled={i === 0}
+                  className="px-0.5 text-[11px] text-gray-500 hover:text-gray-200 disabled:opacity-30" title="上移">↑</button>
+                <button onClick={() => moveRow(i, 1)} disabled={i === rows.length - 1}
+                  className="px-0.5 text-[11px] text-gray-500 hover:text-gray-200 disabled:opacity-30" title="下移">↓</button>
+                <button onClick={() => setRows(rows.filter((_, ri) => ri !== i))}
+                  className="px-1 text-[11px] text-red-500/70 hover:text-red-400" title="移除">✕</button>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <SkillRowSelect
+                  value={row.SkillType ?? 'Gcd'}
+                  options={PR_SKILL_TYPES}
+                  labels={PR_SKILL_TYPE_LABELS}
+                  onChange={v => setRow(i, { SkillType: v })}
+                />
+                <SkillRowSelect
+                  value={row.Target ?? 'Target'}
+                  options={PR_TARGET_TYPES}
+                  labels={PR_TARGET_TYPE_LABELS}
+                  onChange={v => setRow(i, { Target: v })}
+                />
+              </div>
+            </div>
+          )
+        })}
+        <button
+          onClick={() => setRows([...rows, createSkillGroupRow()])}
+          className="text-[11px] text-gray-400 hover:text-emerald-300"
+        >
+          ＋ 添加技能
+        </button>
+      </div>
+    </PrField>
+  )
+}
+
+// ---------- whole-spec renderer ----------
 export function SpecFields({ dto, spec, onChange }: {
   dto: Dto
   spec: PrTypeSpec
