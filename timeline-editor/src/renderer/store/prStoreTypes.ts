@@ -91,6 +91,8 @@ export interface PrStore {
   updateEntry: (guid: string, changes: Partial<PtlEntry>) => void
   deleteEntry: (guid: string) => void
   duplicateEntry: (guid: string) => void
+  /** 批量追加行为组（日志导入），整批一个撤销步 */
+  importEntries: (entries: PtlEntry[]) => void
 
   addEntryNode: (entryGuid: string, parentNodeId: number, type: string) => void
   addSiblingNode: (entryGuid: string, siblingId: number, type: string) => void

@@ -274,6 +274,15 @@ export const usePrStore = create<PrStore>()(
       })
     },
 
+    importEntries: (entries) => {
+      set((s) => {
+        if (!s.doc || entries.length === 0) return
+        pushUndo(s)
+        s.doc.Entries.push(...entries)
+        s.isDirty = true
+      })
+    },
+
     clipboard: null,
 
     copyEntry: (guid) => {

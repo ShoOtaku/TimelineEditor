@@ -3,7 +3,7 @@
 FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选→落位预览），`importEntries` 整批一个撤销步。
 3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构

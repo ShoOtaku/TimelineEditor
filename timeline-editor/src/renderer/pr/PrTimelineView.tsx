@@ -6,6 +6,7 @@ import { useStore } from '../store'
 import { askConfirm } from '../store/dialogStore'
 import { formatPrTime, sortedAnchors, entriesOfAnchor, validatePtlDocument, countEntryNodes } from './prModel'
 import { PrNodeTree } from './PrNodeTree'
+import { PrImportLogsDialog } from './PrImportLogsDialog'
 
 function anchorIcon(a: PtlAnchor): string {
   if (a.IsEndAnchor) return '🏁'
@@ -36,6 +37,7 @@ export function PrTimelineView() {
 
   const [filter, setFilter] = useState('')
   const [showIssues, setShowIssues] = useState(false)
+  const [showImportLogs, setShowImportLogs] = useState(false)
 
   const anchors = useMemo(() => (doc ? sortedAnchors(doc) : []), [doc])
   const issues = useMemo(() => (doc ? validatePtlDocument(doc) : []), [doc])
@@ -95,6 +97,13 @@ export function PrTimelineView() {
           className="px-2.5 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
         >
           ＋ 锚点
+        </button>
+        <button
+          onClick={() => setShowImportLogs(true)}
+          className="px-2.5 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+          title="从战斗日志文档导入玩家技能，按锚点同步规则分段对齐生成行为组"
+        >
+          📥 日志导入
         </button>
         <button
           onClick={() => select({ kind: 'meta' })}
@@ -292,6 +301,7 @@ export function PrTimelineView() {
           <div className="p-4 text-sm text-gray-500 italic">没有匹配的锚点</div>
         )}
       </div>
+      {showImportLogs && <PrImportLogsDialog onClose={() => setShowImportLogs(false)} />}
     </div>
   )
 }
