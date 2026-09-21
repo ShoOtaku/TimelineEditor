@@ -155,6 +155,7 @@ function SkillsPane() {
   const removeColumn = useLogsStore(s => s.removeColumn)
   const moveColumn = useLogsStore(s => s.moveColumn)
   const db = useJobSkillDb()
+  const hasDoc = useLogsStore(s => s.doc !== null)
 
   const [job, setJob] = useState('')
   const [segment, setSegment] = useState<SkillSegment>('abilities')
@@ -201,6 +202,11 @@ function SkillsPane() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-auto">
+      {!hasDoc && (
+        <div className="mx-2 mt-2 rounded border border-amber-800/60 bg-amber-950/30 px-2.5 py-2 text-[11px] leading-4 text-amber-200/90">
+          尚未打开文件——请先在中央面板 <b>① 新建文件</b>，再回来 <b>② 选择技能</b>，最后 <b>③ 导入 FFLogs</b>
+        </div>
+      )}
       {/* 能力技列 */}
       <div className="px-2 pt-2">
         <div className="text-[10px] font-semibold text-amber-400/90 uppercase tracking-wider mb-1">能力技列</div>
@@ -286,12 +292,13 @@ function SkillsPane() {
             <div className="grid grid-cols-4 gap-1">
               {skills.map(({ def, jobName }) => {
                 const added = existingKeys.has(def.name)
+                const disabled = added || !hasDoc
                 const sid = findActionIdByName(def.name)
                 return (
-                  <button key={`${jobName}:${def.name}`} onClick={() => !added && pickSkill(def)} disabled={added}
-                    title={`${def.name}${sid !== undefined ? ` · ID ${sid}` : ''}${def.cd ? ` · CD ${def.cd}s` : ''}${effectiveJob === '全部' ? ` · ${jobName}` : ''}`}
+                  <button key={`${jobName}:${def.name}`} onClick={() => !disabled && pickSkill(def)} disabled={disabled}
+                    title={`${def.name}${sid !== undefined ? ` · ID ${sid}` : ''}${def.cd ? ` · CD ${def.cd}s` : ''}${effectiveJob === '全部' ? ` · ${jobName}` : ''}${!hasDoc ? '（先新建文件）' : ''}`}
                     className={`flex flex-col items-center gap-0.5 p-1 rounded transition-colors relative
-                      ${added ? 'opacity-40 cursor-default' : 'hover:bg-gray-700'}`}>
+                      ${disabled ? 'opacity-40 cursor-default' : 'hover:bg-gray-700'}`}>
                     <SkillIconImg src={def.icon} name={def.name} size={32} />
                     <span className="text-[10px] text-gray-300 leading-3 text-center break-all">{def.name}</span>
                     {added && <Check size={14} className="absolute top-0.5 right-0.5 text-emerald-400" />}
@@ -310,6 +317,7 @@ function SkillsPane() {
 function CustomSkillForm({ onDone }: { onDone: () => void }) {
   const addColumn = useLogsStore(s => s.addColumn)
   const addGcdTrack = useLogsStore(s => s.addGcdTrack)
+  const hasDoc = useLogsStore(s => s.doc !== null)
   const [name, setName] = useState('')
   const [matchName, setMatchName] = useState('')
   const [kind, setKind] = useState<'ability' | 'gcd'>('ability')
@@ -348,7 +356,8 @@ function CustomSkillForm({ onDone }: { onDone: () => void }) {
           className="field-input !py-0.5 w-16" />
       </div>
       <input value={icon} onChange={e => setIcon(e.target.value)} placeholder="图标 URL（可选）" className="field-input !py-0.5" />
-      <button onClick={submit} disabled={!name.trim()}
+      <button onClick={submit} disabled={!name.trim() || !hasDoc}
+        title={hasDoc ? undefined : '先新建文件'}
         className="command-button-primary w-full !h-7">
         <Plus size={13} />添加
       </button>
@@ -359,6 +368,12 @@ function CustomSkillForm({ onDone }: { onDone: () => void }) {
 /** 左侧栏：文件 / 技能 双 Tab */
 export function LogsSidebar() {
   const [tab, setTab] = useState<'files' | 'skills'>('files')
+  // 空文档引导：新建文件后自动切到「技能」Tab
+  useEffect(() => {
+    const handler = () => setTab('skills')
+    document.addEventListener('logs:showSkills', handler)
+    return () => document.removeEventListener('logs:showSkills', handler)
+  }, [])
   return (
     <div className="h-full flex flex-col bg-gray-800">
       <div className="flex border-b border-gray-700 flex-shrink-0">

@@ -196,28 +196,69 @@ function EmptyState({ loadError }: { loadError: string | null }) {
     })
     if (name === null) return
     newDocument(name || '新战斗日志')
+    // 引导第二步：新建后自动切到左侧「技能」Tab
+    document.dispatchEvent(new CustomEvent('logs:showSkills'))
   }
   return (
     <div className="h-full flex items-center justify-center text-gray-500 bg-gray-900">
-      <div className="text-center max-w-md p-6">
-        <div className="text-4xl mb-3">📜</div>
-        <div className="text-sm mb-1 text-gray-300">战斗日志时间轴</div>
-        <div className="text-xs text-gray-600 mb-4">
-          从 FFLogs 导入战斗记录，在垂直时间轴上排布 BOSS 事件与技能使用
+      <div className="max-w-md p-6">
+        <div className="text-center">
+          <div className="text-4xl mb-3">📜</div>
+          <div className="text-sm mb-1 text-gray-300">战斗日志时间轴</div>
+          <div className="text-xs text-gray-600 mb-5">
+            从 FFLogs 导入战斗记录，在垂直时间轴上排布 BOSS 事件与技能使用
+          </div>
         </div>
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <button onClick={handleNew} className="command-button">新建</button>
-          <button onClick={() => document.dispatchEvent(new CustomEvent('editor:open'))} className="command-button">打开</button>
-          <button onClick={() => document.dispatchEvent(new CustomEvent('logs:openFflogs'))}
-            className="command-button border-amber-700 bg-amber-900/60 text-amber-100 hover:bg-amber-800">
-            FFLogs 导入
-          </button>
+        <div className="space-y-2.5 text-left">
+          <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <StepBadge n={1} />
+              <span className="text-xs font-semibold text-gray-200">新建文件</span>
+            </div>
+            <div className="text-[11px] text-gray-500 mb-2 pl-7">创建一个空的时间轴文档，或打开已有文件</div>
+            <div className="flex gap-2 pl-7">
+              <button onClick={handleNew} className="command-button-primary">新建</button>
+              <button onClick={() => document.dispatchEvent(new CustomEvent('editor:open'))} className="command-button">打开</button>
+            </div>
+          </div>
+          <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <StepBadge n={2} />
+              <span className="text-xs font-semibold text-gray-200">选择技能</span>
+            </div>
+            <div className="text-[11px] text-gray-500 pl-7">
+              在左侧「技能」Tab 按职业挑选要安排的技能（如 圣盾阵、暗影卫），点击添加为技能列
+            </div>
+          </div>
+          <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <StepBadge n={3} />
+              <span className="text-xs font-semibold text-gray-200">导入 FFLogs</span>
+            </div>
+            <div className="text-[11px] text-gray-500 mb-2 pl-7">
+              粘贴报告链接并选择战斗，把 BOSS 事件与所选技能的实际使用导入时间轴
+            </div>
+            <div className="pl-7">
+              <button onClick={() => document.dispatchEvent(new CustomEvent('logs:openFflogs'))}
+                className="command-button border-amber-700 bg-amber-900/60 text-amber-100 hover:bg-amber-800">
+                FFLogs 导入
+              </button>
+            </div>
+          </div>
         </div>
         {loadError && (
-          <div className="text-xs text-red-400 bg-red-950/40 border border-red-900 rounded p-2">{loadError}</div>
+          <div className="mt-3 text-xs text-red-400 bg-red-950/40 border border-red-900 rounded p-2">{loadError}</div>
         )}
       </div>
     </div>
+  )
+}
+
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-900/70 border border-amber-700 text-[11px] font-bold text-amber-200">
+      {n}
+    </span>
   )
 }
 
