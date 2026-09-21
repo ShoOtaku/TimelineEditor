@@ -7,14 +7,33 @@
 
 ## 这是什么？
 
-一个 **Electron 桌面应用**，可视化编辑 FFXIV 两种时间轴格式：
+一个 **Electron 桌面应用**，可视化编辑 FFXIV 三种时间轴：
 
-| 模式 | 插件 | 目录 |
+| 模式 | 插件 / 数据来源 | 目录 |
 |------|------|------|
 | 🌲 AE 时间轴 | AEAssist Triggerline | `Triggerlines/` |
 | ⏱ PR 时间轴 | PromeRotation PureTimeline | `pluginConfigs/PromeRotation/PureTimelines` |
+| 📋 战斗日志 | FFLogs v1 报告解析 | `LogsTimelines`（默认 `文档/TimelineEditor`） |
 
-工具栏左上角按钮一键切换，两种格式共享文件读写与技能名数据，但编辑界面和数据结构完全独立。
+工具栏左上角三个按钮一键切换，三种格式共享文件读写与技能名数据，但编辑界面和数据结构完全独立。
+
+## 界面预览
+
+**AE 时间轴** — 行为树编辑 + 规格驱动属性面板：
+
+![AE 时间轴模式](docs/images/mode-ae.png)
+
+**PR 时间轴** — 锚点-行为组双层级时间轴，同步规则与校验状态一目了然：
+
+![PR 时间轴模式](docs/images/mode-pr.png)
+
+**战斗日志** — FFLogs 垂直技能时间轴：BOSS 读条多轨道、GCD 轨道、能力技 CD 覆盖：
+
+![战斗日志模式](docs/images/mode-logs.png)
+
+**日志导入 PR** — 把战斗日志中的玩家技能按锚点同步规则分段对齐，一键生成 PR 行为组：
+
+![日志导入向导](docs/images/pr-import-logs.png)
 
 ### 核心能力
 
@@ -28,10 +47,17 @@
 **PR 模式（PromeRotation PureTimeline）**
 - 锚点-行为组双层级结构，按时间线排列
 - 锚点同步规则编辑（CastStart/ActionEffect 等 12 种同步类型，技能名自动查找）
+- **从战斗日志导入技能**：日志中的技能使用按锚点同步规则分段对齐（同名技能多次出现自动消歧，读条/判定分别对齐读条开始/判定时刻，无法匹配的锚点插值估算并支持人工改选），一键生成「加入技能队列」行为组
 - 行为组内嵌节点树编辑（7 种节点类型：串行/并行/条件/动作/分支/延迟/C#持续行为）
 - 15 种条件 + 18 种内置动作 + 3 种 XSZBox IPC 动作的规格驱动编辑器
 - 节点拖拽排序 + 右键菜单 + 嵌套折叠 + 常驻节点工具条
 - PtlDefinition 校验规则实时检查（首锚点 InCombat、时间递增、偏移越界等）
+
+**战斗日志模式（FFLogs）**
+- FFLogs v1 报告四步导入向导：报告 → 战斗 → 下载 → 技能映射，技能名按国服客户端数据译为中文
+- 垂直 SVG 时间轴：BOSS 事件图标 + 读条矩形（重合读条自动分配多轨道），GCD 独立轨道
+- 能力技每列一个技能：CD 灰条从使用点向下延伸、持续绿条叠加
+- 技能列管理：21 职业 985 技能库（含 CD/持续/图标），显示名/匹配名/CD/图标均可覆盖
 
 **通用**
 - 全量技能名查找：43181 条（含 Boss/NPC），从游戏本体直接读取 Action 表
@@ -58,7 +84,7 @@ npm run dev
 ### 打包为 exe
 
 ```bash
-npm run dist       # → release/Timeline Editor 1.0.0.exe
+npm run dist       # → release/win-unpacked/Timeline Editor.exe（免安装目录版）
 ```
 
 ---
@@ -88,6 +114,13 @@ npm run dist       # → release/Timeline Editor 1.0.0.exe
 - 工具栏 ✚ 新建创建空白时间轴
 - 节点树支持拖放排序（拖到顶部=插入前/底部=插入后/中间=放入组合节点内）
 - 右键节点打开操作菜单（添加子/同级节点、切换启用、移序、删除）
+- 「📥 日志导入」：选择战斗日志文档 → 核对锚点映射（可人工改选）→ 预览落位 → 批量生成技能行为组，整批一次撤销
+
+### 战斗日志模式
+
+- 左侧「文件」Tab 管理日志文档；「技能」Tab 从职业技能库/自定义添加技能列
+- 工具栏 FFLogs 按钮打开四步导入向导，从报告链接解析 BOSS 事件与玩家技能使用
+- 中轴滚轮缩放，底部「适应」按钮一键适配全长；悬停事件/技能查看详情与技能 ID
 
 ---
 
@@ -163,7 +196,7 @@ PtlDocument → Meta (名称/职业/地图/作者)
 | 状态 | Zustand 5 + Immer 10（50 步 undo/redo） |
 | 代码编辑 | Monaco Editor 0.55（C#） |
 | 样式 | TailwindCSS 4（暗色主题） |
-| IPC | contextBridge + ipcMain.handle（20 通道） |
+| IPC | contextBridge + ipcMain.handle（31 通道） |
 | DLL 解析 | 纯 TS ECMA-335 解析器 → AEAssist 类型发现；ilspycmd → AEAssist 规格提取 |
 | 游戏数据 | 纯 Python SqPack/EXD 读取器 → 全量 Action 表导出 |
 
@@ -213,8 +246,10 @@ timeline-editor/
 │       │   ├── semanticFields.ts       # 语义字段映射
 │       │   ├── ScriptPanel.tsx         # Monaco C# 编辑器
 │       │   └── AcrViewerPanel.tsx      # ACR 类型查看器
-│       ├── pr/                    # PR 编辑器（12 个文件）
+│       ├── pr/                    # PR 编辑器
 │       │   ├── PrTimelineView.tsx      # 锚点-行为组中心视图
+│       │   ├── PrImportLogsDialog.tsx  # 战斗日志导入向导（三步）
+│       │   ├── logsAlign.ts            # 分段锚点对齐算法（纯函数）
 │       │   ├── PrNodeTree.tsx          # 节点树（拖拽排序 + 右键菜单）
 │       │   ├── PrPropertyPanel.tsx     # PR 属性面板分发
 │       │   ├── PrAnchorEditor.tsx      # 锚点 + 同步规则编辑
@@ -226,6 +261,12 @@ timeline-editor/
 │       │   ├── prModel.ts             # 工厂/校验/树辅助
 │       │   ├── prMutations.ts         # 文档变更 + 拖放校验
 │       │   └── prFields.tsx           # 共享字段组件
+│       ├── logs/                  # 战斗日志模式
+│       │   ├── LogsTimelineView.tsx    # 垂直 SVG 时间轴（BOSS 多轨道/GCD/能力列）
+│       │   ├── FflogsImportDialog.tsx  # FFLogs 四步导入向导
+│       │   ├── fflogsImport.ts         # casts 解析（读条配对/去重/中文化）
+│       │   ├── LogsSidebar.tsx         # 文件列表 + 技能列管理
+│       │   └── logsStore.ts            # 文档/选择/缩放/undo
 │       └── store/
 │           ├── index.ts           # AE Zustand store
 │           ├── prStore.ts         # PR 文档/锚点/行为组
