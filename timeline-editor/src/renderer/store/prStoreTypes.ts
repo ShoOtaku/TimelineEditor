@@ -15,7 +15,7 @@ export interface PrUndoEntry {
   tag?: string
 }
 
-export type EditorMode = 'ae' | 'pr'
+export type EditorMode = 'ae' | 'pr' | 'logs'
 
 /** Internal clipboard for cross-anchor / cross-entry copy & paste */
 export type PrClipboard =

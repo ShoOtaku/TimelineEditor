@@ -1,9 +1,10 @@
 # Timeline Editor
 
-FFXIV 时间轴外部编辑器，支持两种格式（工具栏左上按钮切换）：
+FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
 2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。
+3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构
 
@@ -58,13 +59,25 @@ timeline-editor/
 │       │   └── prFields.tsx    # 共享字段组件（PrField/PrNumberInput/技能名提示）
 │       ├── components/
 │       │   ├── TreeView.tsx    # 可展开树列表
-│       │   ├── Toolbar.tsx     # 工具栏 — Open/Save/Undo/Redo/Script/⚙设置
+│       │   ├── Toolbar.tsx     # 工具栏 — 三模式切换/Open/Save/Undo/Redo/Script/⚙设置
 │       │   ├── Sidebar.tsx     # 文件浏览器 — 遍历 Triggerlines，响应 AE 目录变更
 │       │   ├── StatusBar.tsx   # 状态栏
 │       │   ├── ContextMenu.tsx # 右键菜单 — 添加 10 种子节点
 │       │   ├── KeyboardShortcuts.tsx
 │       │   ├── Canvas.tsx      # （旧版 ReactFlow 画布，已弃用）
 │       │   └── layout.ts       # Dagre 布局（旧画布用）
+│       ├── logs/               # 战斗日志模式（FFLogs 时间轴）
+│       │   ├── logsTypes.ts    # LogsTimelineDoc 模型 + 时间格式化/解析 + 排序插入
+│       │   ├── logsStore.ts    # Zustand+Immer — 文档/选择/缩放/undo（tag 合并）
+│       │   ├── fflogsImport.ts # 纯函数 — casts 解析（去重/匹配/begincast 配对算读条时长）
+│       │   ├── eventTracks.ts  # 纯函数 — BOSS 事件重叠区间轨道打包
+│       │   ├── actionIcons.ts  # 技能图标解析：本地库图标 id → xivapi 静态 CDN 优先，API 兜底
+│       │   ├── actionNames.ts  # 国服 Action 中文名库缓存单例（IPC 读 data/action-names-cn.json）
+│       │   ├── skillDb.ts      # 职业技能库缓存单例（IPC 读 data/job-skills.json）
+│       │   ├── LogsTimelineView.tsx # 垂直 SVG 画布（刻度尺/BOSS 多轨道/GCD/能力列）
+│       │   ├── LogsSidebar.tsx # 文件列表 + 技能列管理（职业图标网格/自定义技能）
+│       │   ├── LogsPropertyPanel.tsx # 上下文属性面板（文档设置/事件/技能使用/列覆盖）
+│       │   └── FflogsImportDialog.tsx # 四步导入向导（报告→战斗→下载→映射）
 │       └── panels/
 │           ├── PropertyPanel.tsx      # 属性编辑 + 动态条件/动作类型选择器（内置 + ACR）；未选中节点时显示 DocMetaPanel
 │           ├── DocMetaPanel.tsx       # AE 时间轴元数据编辑（updateDocMeta，GUID 重新生成，起手脚本入口）
@@ -236,13 +249,25 @@ interface AcrTypeDef {
 
 `loadFile(path)` → IPC `file:read` → `JSON.parse` → 写入 Zustand store。加载时清空 undo/redo。
 
-### IPC 通道（20 个）
+### IPC 通道（31 个）
 
 `file:read` `file:write` `file:exists` `file:stat` `file:listDir` |
 `dialog:openFile` `dialog:saveFile` `dialog:selectAeDirectory` |
-`app:getDefaultDir` `app:getBackupDir` `app:loadSpellData` |
+`app:getDefaultDir` `app:getBackupDir` `app:loadSpellData` `app:loadJobSkills` `app:loadActionNames` |
 `app:getAeDirectory` `app:getAcrDir` | `acr:listDlls` `acr:discoverTypes` |
-`app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile`
+`app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile` |
+`app:getLogsDir` `dialog:selectLogsDirectory` `dialog:openLogsFile` `dialog:saveLogsFile` |
+`fflogs:fetchReport` `fflogs:fetchCasts` `fflogs:cancelCasts`（进度事件 `fflogs:progress`）
+
+### 战斗日志（logs 模式）要点
+
+- **文档**：`LogsTimelineDoc{$type,version:1,name,lengthMs,offsetMs,gcdDuration,events,gcds,columns,skillUses}`；`columns[].kind` 区分 ability 独占列与 gcd 轨道跟踪技能；`matchName` 是日志匹配名（支持别名覆盖，如「翅膀」匹配「武装戍卫」）
+- **FFLogs v1 API**：`https://cn.fflogs.com/v1/report/fights|events/casts`，主进程代理（代理设置生效、免 CORS）；casts 分页按 `nextPageTimestamp`，`translate=true` 取中文技能名；默认公共 API key 在 `shared/fflogsTypes.ts::DEFAULT_FFLOGS_API_KEY`，可在导入向导中替换
+- **技能名中文化**：FFLogs 对 7.x 新技能/新 BOSS 技能缺中文翻译（`translate=true` 也返回英文），`parseFflogsFight` 按 `ability.guid` 查本地库 `data/action-names-cn.json`（`scripts/build-action-names.mjs` 生成：thewakingsands/ffxiv-datamining-cn 国服客户端解包数据 45372 条 + `data/rsv-overrides.txt` 人工解密覆盖表，`_rsv_` 占位串按整串精确匹配防表间 id 冲突）统一译为中文后再匹配列/生成事件；无映射的保留 FFLogs 原名
+- **读条时长**：`begincast` 与之后最近 `cast`（同 source+技能名）配对；无配对默认 2500ms，钳制 500–30000ms
+- **BOSS 事件渲染**：`eventTracks.packEventTracks` 区间打包（200ms 间隔），每轨道一列 68px，图标+读条矩形；图标经 `actionIcons.resolveActionIcons` 按 `ability.guid` 解析：本地中文名库图标 id → xivapi 静态 CDN（`/i/{folder}/{file}.png`，不受 API 数据冻结影响）优先，xivapi/cafemaker API 兜底，导入时批量解析后写入文档
+- **技能库**：`scripts/build-job-skills.mjs` 从 ccinos/act_dps_show 官方职业指南数据生成 `data/job-skills.json`（21 职业 ~985 技能，含 CD/持续/威力/图标 URL），按名去重；图标走 `static.web.sdo.com` CDN，CSP `img-src` 白名单已加 xivapi/cafemaker/sdo，`connect-src` 已加 xivapi/cafemaker
+- **logs 目录**：默认 `%DOCUMENTS%/TimelineEditor/LogsTimelines`，持久化键 `logsDirectory`
 
 ### Preload 事件监听
 

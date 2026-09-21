@@ -3,6 +3,12 @@ import type {
   AppSettings, CactbotCatalogResult, CactbotDownloadResult,
   ProxySettings, ProxyTestResult
 } from '../shared/cactbotTypes'
+import type {
+  FflogsCastEvent, FflogsFetchCastsRequest, FflogsFetchProgress,
+  FflogsReportInfo, FflogsResult
+} from '../shared/fflogsTypes'
+import type { JobSkillDatabase } from '../shared/jobSkillTypes'
+import type { ActionNameDatabase } from '../shared/actionNameTypes'
 
 export interface FileResult {
   success: boolean
@@ -84,6 +90,40 @@ const api = {
     const handler = (_event: Electron.IpcRendererEvent, newDir: string) => callback(newDir)
     ipcRenderer.on('pr:directoryChanged', handler)
     return () => ipcRenderer.removeListener('pr:directoryChanged', handler)
+  },
+
+  // FFLogs
+  fetchFflogsReport: (code: string, apiKey?: string): Promise<FflogsResult<FflogsReportInfo>> =>
+    ipcRenderer.invoke('fflogs:fetchReport', code, apiKey),
+  fetchFflogsCasts: (req: FflogsFetchCastsRequest): Promise<FflogsResult<FflogsCastEvent[]>> =>
+    ipcRenderer.invoke('fflogs:fetchCasts', req),
+  cancelFflogsCasts: (requestId: string): Promise<void> =>
+    ipcRenderer.invoke('fflogs:cancelCasts', requestId),
+  onFflogsProgress: (callback: (p: FflogsFetchProgress) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, p: FflogsFetchProgress) => callback(p)
+    ipcRenderer.on('fflogs:progress', handler)
+    return () => ipcRenderer.removeListener('fflogs:progress', handler)
+  },
+
+  // Job skill database
+  loadJobSkills: (): Promise<{ success: boolean; data?: JobSkillDatabase; error?: string }> =>
+    ipcRenderer.invoke('app:loadJobSkills'),
+  loadActionNames: (): Promise<{ success: boolean; data?: ActionNameDatabase; error?: string }> =>
+    ipcRenderer.invoke('app:loadActionNames'),
+
+  // Logs (combat log timelines) directory
+  getLogsDirectory: (): Promise<string> =>
+    ipcRenderer.invoke('app:getLogsDir'),
+  selectLogsDirectory: (): Promise<{ cancelled: boolean; directory?: string }> =>
+    ipcRenderer.invoke('dialog:selectLogsDirectory'),
+  openLogsFileDialog: (): Promise<DialogResult> =>
+    ipcRenderer.invoke('dialog:openLogsFile'),
+  saveLogsFileDialog: (defaultName?: string): Promise<DialogResult> =>
+    ipcRenderer.invoke('dialog:saveLogsFile', defaultName),
+  onLogsDirectoryChanged: (callback: (newDir: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, newDir: string) => callback(newDir)
+    ipcRenderer.on('logs:directoryChanged', handler)
+    return () => ipcRenderer.removeListener('logs:directoryChanged', handler)
   },
 
   // App settings and cactbot network access

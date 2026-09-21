@@ -12,6 +12,7 @@ export interface ProxySettings {
 export interface AppSettings {
   aeDirectory: string
   prDirectory: string
+  logsDirectory: string
   proxy: ProxySettings
 }
 

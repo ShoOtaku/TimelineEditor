@@ -22,11 +22,18 @@ const DEFAULT_PR_DIR = join(
   'PureTimelines'
 )
 
+const DEFAULT_LOGS_DIR = join(
+  app.getPath('documents'),
+  'TimelineEditor',
+  'LogsTimelines'
+)
+
 const CONFIG_PATH = join(app.getPath('userData'), 'ae-config.json')
 
 let settings: AppSettings = {
   aeDirectory: DEFAULT_AE_DIR,
   prDirectory: DEFAULT_PR_DIR,
+  logsDirectory: DEFAULT_LOGS_DIR,
   proxy: { ...DEFAULT_PROXY_SETTINGS }
 }
 
@@ -39,6 +46,9 @@ export async function loadAppConfig(): Promise<void> {
     }
     if (typeof raw.prDirectory === 'string' && raw.prDirectory.trim()) {
       settings.prDirectory = raw.prDirectory
+    }
+    if (typeof raw.logsDirectory === 'string' && raw.logsDirectory.trim()) {
+      settings.logsDirectory = raw.logsDirectory
     }
     const proxy = validateProxySettings(raw.proxy)
     if (proxy.success) settings.proxy = proxy.settings
@@ -60,12 +70,14 @@ export function getAppSettings(): AppSettings {
   return {
     aeDirectory: settings.aeDirectory,
     prDirectory: settings.prDirectory,
+    logsDirectory: settings.logsDirectory,
     proxy: { ...settings.proxy }
   }
 }
 
 export function getAeDirectory(): string { return settings.aeDirectory }
 export function getPrDirectory(): string { return settings.prDirectory }
+export function getLogsDirectory(): string { return settings.logsDirectory }
 export function getTriggerlinesDir(): string { return join(settings.aeDirectory, 'Triggerlines') }
 export function getAcrDir(): string { return join(settings.aeDirectory, 'ACR') }
 
@@ -76,6 +88,11 @@ export async function setAeDirectory(directory: string): Promise<void> {
 
 export async function setPrDirectory(directory: string): Promise<void> {
   settings.prDirectory = directory
+  await persistAppConfig()
+}
+
+export async function setLogsDirectory(directory: string): Promise<void> {
+  settings.logsDirectory = directory
   await persistAppConfig()
 }
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useStore } from '../store'
 import { usePrStore } from '../store/prStore'
+import { useLogsStore } from '../logs/logsStore'
 import { askConfirm, isDialogOpen } from '../store/dialogStore'
 import { countEntryNodes, isCompositeNode } from '../pr/prModel'
 
@@ -33,6 +34,15 @@ export function KeyboardShortcuts() {
   const prPasteEntry = usePrStore(s => s.pasteEntry)
   const prPasteNode = usePrStore(s => s.pasteNode)
 
+  const logsSelection = useLogsStore(s => s.selection)
+  const logsDoc = useLogsStore(s => s.doc)
+  const logsUndo = useLogsStore(s => s.undo)
+  const logsRedo = useLogsStore(s => s.redo)
+  const logsDeleteEvent = useLogsStore(s => s.deleteEvent)
+  const logsDeleteGcdUse = useLogsStore(s => s.deleteGcdUse)
+  const logsDeleteSkillUse = useLogsStore(s => s.deleteSkillUse)
+  const logsRemoveColumn = useLogsStore(s => s.removeColumn)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // 模态框打开时不响应全局快捷键（否则会隔着确认框重复触发删除等操作）
@@ -49,6 +59,7 @@ export function KeyboardShortcuts() {
 
       const ctrl = e.ctrlKey || e.metaKey
       const isPr = editorMode === 'pr'
+      const isLogs = editorMode === 'logs'
 
       // Ctrl+S: Save
       if (ctrl && e.key === 's') {
@@ -74,19 +85,44 @@ export function KeyboardShortcuts() {
       // Ctrl+Z: Undo
       if (ctrl && !e.shiftKey && e.key === 'z') {
         e.preventDefault()
-        if (isPr) prUndo(); else undo()
+        if (isPr) prUndo(); else if (isLogs) logsUndo(); else undo()
         return
       }
 
       // Ctrl+Y or Ctrl+Shift+Z: Redo
       if ((ctrl && !e.shiftKey && e.key === 'y') || (ctrl && e.shiftKey && e.key === 'Z')) {
         e.preventDefault()
-        if (isPr) prRedo(); else redo()
+        if (isPr) prRedo(); else if (isLogs) logsRedo(); else redo()
         return
       }
 
       // Delete: delete selected item
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (isLogs) {
+          if (!logsSelection || !logsDoc) return
+          e.preventDefault()
+          if (logsSelection.kind === 'event') {
+            const id = logsSelection.id
+            const ev = logsDoc.events.find(x => x.id === id)
+            if (ev && ev.text.trim()) {
+              askConfirm({
+                title: '删除事件',
+                message: `删除事件「${ev.text}」？删除后可通过 Ctrl+Z 撤销。`,
+                confirmLabel: '删除',
+                danger: true
+              }).then(ok => { if (ok) logsDeleteEvent(id) })
+              return
+            }
+            logsDeleteEvent(id)
+          } else if (logsSelection.kind === 'gcd') {
+            logsDeleteGcdUse(logsSelection.id)
+          } else if (logsSelection.kind === 'skillUse') {
+            logsDeleteSkillUse(logsSelection.columnId, logsSelection.id)
+          } else if (logsSelection.kind === 'column') {
+            logsRemoveColumn(logsSelection.id)
+          }
+          return
+        }
         if (isPr) {
           if (!prSelection || !prDoc) return
           e.preventDefault()
@@ -140,13 +176,13 @@ export function KeyboardShortcuts() {
       }
 
       // Space: Toggle enabled (AE only — PR uses property panel checkboxes)
-      if (e.key === ' ' && !isPr && selectedNodeId !== null) {
+      if (e.key === ' ' && !isPr && !isLogs && selectedNodeId !== null) {
         e.preventDefault()
         toggleNodeEnabled(selectedNodeId)
         return
       }
 
-      // Ctrl+D: Duplicate
+      // Ctrl+D: Duplicate (AE/PR)
       if (ctrl && e.key === 'd') {
         if (isPr) {
           if (!prSelection) return
@@ -154,7 +190,7 @@ export function KeyboardShortcuts() {
           if (prSelection.kind === 'anchor') prDuplicateAnchor(prSelection.guid)
           else if (prSelection.kind === 'entry') prDuplicateEntry(prSelection.guid)
           else if (prSelection.kind === 'node') prDuplicateEntryNode(prSelection.entryGuid, prSelection.nodeId)
-        } else if (selectedNodeId !== null && selectedNodeId !== 0) {
+        } else if (!isLogs && selectedNodeId !== null && selectedNodeId !== 0) {
           e.preventDefault()
           duplicateNode(selectedNodeId)
         }
@@ -197,7 +233,7 @@ export function KeyboardShortcuts() {
         return
       }
 
-      if (isPr) return
+      if (isPr || isLogs) return
 
       // Ctrl+C: Copy selected node (AE)
       if (ctrl && e.key === 'c') {
@@ -224,7 +260,8 @@ export function KeyboardShortcuts() {
     selectedNodeId, undo, redo, deleteNode, getNodeById, toggleNodeEnabled, duplicateNode, copyNode, pasteNode, clipboard,
     editorMode, prSelection, prDoc, prUndo, prRedo,
     prDeleteAnchor, prDeleteEntry, prDeleteEntryNode, prDuplicateAnchor, prDuplicateEntry, prDuplicateEntryNode,
-    prClipboard, prCopyEntry, prCopyNode, prPasteEntry, prPasteNode
+    prClipboard, prCopyEntry, prCopyNode, prPasteEntry, prPasteNode,
+    logsSelection, logsDoc, logsUndo, logsRedo, logsDeleteEvent, logsDeleteGcdUse, logsDeleteSkillUse, logsRemoveColumn
   ])
 
   return null

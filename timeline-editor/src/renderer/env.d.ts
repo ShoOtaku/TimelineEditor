@@ -4,6 +4,12 @@ import type {
   AppSettings, CactbotCatalogResult, CactbotDownloadResult,
   ProxySettings, ProxyTestResult
 } from '../shared/cactbotTypes'
+import type {
+  FflogsCastEvent, FflogsFetchCastsRequest, FflogsFetchProgress,
+  FflogsReportInfo, FflogsResult
+} from '../shared/fflogsTypes'
+import type { JobSkillDatabase } from '../shared/jobSkillTypes'
+import type { ActionNameDatabase } from '../shared/actionNameTypes'
 
 interface ElectronFileResult {
   success: boolean
@@ -49,6 +55,23 @@ interface ElectronAPI {
   openPrFileDialog(): Promise<ElectronDialogResult>
   savePrFileDialog(defaultName?: string): Promise<ElectronDialogResult>
   onPrDirectoryChanged(callback: (newDir: string) => void): () => void
+
+  // FFLogs
+  fetchFflogsReport(code: string, apiKey?: string): Promise<FflogsResult<FflogsReportInfo>>
+  fetchFflogsCasts(req: FflogsFetchCastsRequest): Promise<FflogsResult<FflogsCastEvent[]>>
+  cancelFflogsCasts(requestId: string): Promise<void>
+  onFflogsProgress(callback: (p: FflogsFetchProgress) => void): () => void
+
+  // Job skill database
+  loadJobSkills(): Promise<{ success: boolean; data?: JobSkillDatabase; error?: string }>
+  loadActionNames(): Promise<{ success: boolean; data?: ActionNameDatabase; error?: string }>
+
+  // Logs (combat log timelines) directory
+  getLogsDirectory(): Promise<string>
+  selectLogsDirectory(): Promise<{ cancelled: boolean; directory?: string }>
+  openLogsFileDialog(): Promise<ElectronDialogResult>
+  saveLogsFileDialog(defaultName?: string): Promise<ElectronDialogResult>
+  onLogsDirectoryChanged(callback: (newDir: string) => void): () => void
 
   // App settings and cactbot network access
   getSettings(): Promise<AppSettings>

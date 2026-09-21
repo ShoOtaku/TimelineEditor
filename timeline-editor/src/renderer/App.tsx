@@ -43,6 +43,11 @@ import { PrSidebar } from './pr/PrSidebar'
 import { PrTimelineView } from './pr/PrTimelineView'
 import { PrPropertyPanel } from './pr/PrPropertyPanel'
 import { PrScriptPanel } from './pr/PrScriptPanel'
+import { LogsSidebar } from './logs/LogsSidebar'
+import { LogsTimelineView } from './logs/LogsTimelineView'
+import { LogsPropertyPanel } from './logs/LogsPropertyPanel'
+import { FflogsImportDialog } from './logs/FflogsImportDialog'
+import { useLogsStore } from './logs/logsStore'
 
 export default function App() {
   const fileName = useStore(s => s.fileName)
@@ -60,6 +65,12 @@ export default function App() {
   const prLoadFile = usePrStore(s => s.loadFile)
   const prSaveFile = usePrStore(s => s.saveFile)
   const prNewDocument = usePrStore(s => s.newDocument)
+  const logsFileName = useLogsStore(s => s.fileName)
+  const logsFilePath = useLogsStore(s => s.filePath)
+  const logsIsDirty = useLogsStore(s => s.isDirty)
+  const logsLoadFile = useLogsStore(s => s.loadFile)
+  const logsSaveFile = useLogsStore(s => s.saveFile)
+  const logsNewDocument = useLogsStore(s => s.newDocument)
   const [showScript, setShowScript] = useState(false)
   const [showAcrViewer, setShowAcrViewer] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(240)
@@ -68,9 +79,11 @@ export default function App() {
   const [showUpdate, setShowUpdate] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showCactbotImport, setShowCactbotImport] = useState(false)
+  const [showFflogsImport, setShowFflogsImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
 
   const isPr = editorMode === 'pr'
+  const isLogs = editorMode === 'logs'
 
   // Drag-to-resize helper: listeners are removed on mouseup (the old inline
   // version leaked a new mousemove listener on every drag)
@@ -85,6 +98,23 @@ export default function App() {
   }, [])
 
   const handleOpen = useCallback(async () => {
+    if (isLogs) {
+      if (logsIsDirty) {
+        const ok = await askConfirm({
+          title: '放弃未保存的修改？',
+          message: '当前战斗日志时间轴有未保存的修改，打开其他文件将丢失这些修改。',
+          confirmLabel: '放弃并打开',
+          danger: true
+        })
+        if (!ok) return
+      }
+      const result = await window.electronAPI.openLogsFileDialog()
+      if (!result.cancelled && result.filePath) {
+        const ok = await logsLoadFile(result.filePath)
+        if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
+      }
+      return
+    }
     if (isPr) {
       if (prIsDirty) {
         const ok = await askConfirm({
@@ -116,9 +146,21 @@ export default function App() {
       const ok = await loadFile(result.filePath)
       if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
     }
-  }, [isPr, isDirty, prIsDirty, loadFile, prLoadFile])
+  }, [isLogs, isPr, isDirty, prIsDirty, logsIsDirty, loadFile, prLoadFile, logsLoadFile])
 
   const handleSave = useCallback(async () => {
+    if (isLogs) {
+      if (logsFilePath) {
+        await logsSaveFile(logsFilePath)
+      } else {
+        const result = await window.electronAPI.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
+        if (!result.cancelled && result.filePath) {
+          const ok = await logsSaveFile(result.filePath)
+          if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
+        }
+      }
+      return
+    }
     if (isPr) {
       if (prFilePath) {
         await prSaveFile(prFilePath)
@@ -140,9 +182,17 @@ export default function App() {
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
       }
     }
-  }, [isPr, filePath, fileName, saveFile, prFilePath, prFileName, prSaveFile])
+  }, [isLogs, isPr, filePath, fileName, saveFile, prFilePath, prFileName, prSaveFile, logsFilePath, logsFileName, logsSaveFile])
 
   const handleSaveAs = useCallback(async () => {
+    if (isLogs) {
+      const result = await window.electronAPI.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
+      if (!result.cancelled && result.filePath) {
+        const ok = await logsSaveFile(result.filePath)
+        if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
+      }
+      return
+    }
     if (isPr) {
       const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
       if (!result.cancelled && result.filePath) {
@@ -156,7 +206,7 @@ export default function App() {
       const ok = await saveFile(result.filePath)
       if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
     }
-  }, [isPr, fileName, saveFile, prFileName, prSaveFile])
+  }, [isLogs, isPr, fileName, saveFile, prFileName, prSaveFile, logsFileName, logsSaveFile])
 
   const handleNewPr = useCallback(async () => {
     if (prIsDirty) {
@@ -178,6 +228,26 @@ export default function App() {
     prNewDocument(name)
   }, [prIsDirty, prNewDocument])
 
+  const handleNewLogs = useCallback(async () => {
+    if (logsIsDirty) {
+      const ok = await askConfirm({
+        title: '放弃未保存的修改？',
+        message: '当前战斗日志时间轴有未保存的修改，新建将丢失这些修改。',
+        confirmLabel: '放弃并新建',
+        danger: true
+      })
+      if (!ok) return
+    }
+    const name = await askPrompt({
+      title: '新建战斗日志时间轴',
+      message: '时间轴名称',
+      defaultValue: '新战斗日志',
+      placeholder: '如：绝伊甸 P1 减伤轴'
+    })
+    if (name === null) return
+    logsNewDocument(name || '新战斗日志')
+  }, [logsIsDirty, logsNewDocument])
+
   // Listen for custom events from keyboard shortcuts
   useEffect(() => {
     const onSave = () => handleSave()
@@ -185,17 +255,20 @@ export default function App() {
     const onSaveAs = () => handleSaveAs()
     const onToggleScript = () => setShowScript(s => !s)
     const onOpenScript = () => setShowScript(true)
+    const onOpenFflogs = () => setShowFflogsImport(true)
     document.addEventListener('editor:save', onSave)
     document.addEventListener('editor:open', onOpen)
     document.addEventListener('editor:saveAs', onSaveAs)
     document.addEventListener('editor:toggleScript', onToggleScript)
     document.addEventListener('editor:openScript', onOpenScript)
+    document.addEventListener('logs:openFflogs', onOpenFflogs)
     return () => {
       document.removeEventListener('editor:save', onSave)
       document.removeEventListener('editor:open', onOpen)
       document.removeEventListener('editor:saveAs', onSaveAs)
       document.removeEventListener('editor:toggleScript', onToggleScript)
       document.removeEventListener('editor:openScript', onOpenScript)
+      document.removeEventListener('logs:openFflogs', onOpenFflogs)
     }
   }, [handleSave, handleOpen, handleSaveAs])
 
@@ -228,7 +301,7 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-900">
       <Toolbar
         mode={editorMode}
-        onToggleMode={() => setEditorMode(isPr ? 'ae' : 'pr')}
+        onSwitchMode={setEditorMode}
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
@@ -237,17 +310,19 @@ export default function App() {
         onToggleAcrViewer={() => setShowAcrViewer(s => !s)}
         showAcrViewer={showAcrViewer}
         onNewPr={handleNewPr}
+        onNewLogs={handleNewLogs}
         onOpenCactbot={() => setShowCactbotImport(true)}
+        onOpenFflogs={() => setShowFflogsImport(true)}
         onOpenSettings={() => setShowSettings(true)}
-        fileName={isPr ? prFileName : fileName}
-        isDirty={isPr ? prIsDirty : isDirty}
+        fileName={isPr ? prFileName : isLogs ? logsFileName : fileName}
+        isDirty={isPr ? prIsDirty : isLogs ? logsIsDirty : isDirty}
         updateAvailable={updateAvailable}
         onCheckUpdate={handleCheckUpdate}
       />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div style={{ width: sidebarWidth }} className="flex-shrink-0 border-r border-gray-700 overflow-hidden">
-          {isPr ? <PrSidebar /> : <Sidebar />}
+          {isPr ? <PrSidebar /> : isLogs ? <LogsSidebar /> : <Sidebar />}
         </div>
 
         {/* Resizer: sidebar | canvas */}
@@ -261,10 +336,10 @@ export default function App() {
         {/* Canvas + Script area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
-            {isPr ? <PrTimelineView /> : <TreeView />}
+            {isPr ? <PrTimelineView /> : isLogs ? <LogsTimelineView /> : <TreeView />}
           </div>
 
-          {showScript && (
+          {showScript && !isLogs && (
             <>
               <div
                 className="h-1 bg-gray-700 hover:bg-blue-500 cursor-row-resize flex-shrink-0 transition-colors"
@@ -289,7 +364,7 @@ export default function App() {
 
         {/* Property Panel / ACR Viewer */}
         <div style={{ width: panelWidth }} className="flex-shrink-0 border-l border-gray-700 overflow-hidden">
-          {isPr ? <PrPropertyPanel /> : showAcrViewer ? <AcrViewerPanel /> : <PropertyPanel />}
+          {isPr ? <PrPropertyPanel /> : isLogs ? <LogsPropertyPanel /> : showAcrViewer ? <AcrViewerPanel /> : <PropertyPanel />}
         </div>
       </div>
       <StatusBar />
@@ -298,6 +373,7 @@ export default function App() {
       {showUpdate && <UpdateDialog onClose={() => { setShowUpdate(false); setUpdateAvailable(false) }} />}
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showCactbotImport && <CactbotImportDialog onClose={() => setShowCactbotImport(false)} />}
+      {showFflogsImport && <FflogsImportDialog onClose={() => setShowFflogsImport(false)} />}
     </div>
     </ErrorBoundary>
   )

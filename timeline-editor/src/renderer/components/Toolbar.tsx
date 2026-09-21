@@ -1,15 +1,16 @@
 import {
-  Clock3, Code2, Download, FolderOpen, Import, Plus, Redo2, RefreshCw,
+  Activity, Clock3, Code2, Download, FolderOpen, Import, Plus, Redo2, RefreshCw,
   Save, SaveAll, ScanSearch, Settings, Undo2, Workflow
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { EditorMode } from '../store/prStore'
 import { useStore } from '../store'
 import { usePrStore } from '../store/prStore'
+import { useLogsStore } from '../logs/logsStore'
 
 interface ToolbarProps {
   mode: EditorMode
-  onToggleMode: () => void
+  onSwitchMode: (mode: EditorMode) => void
   onOpen: () => void
   onSave: () => void
   onSaveAs: () => void
@@ -18,7 +19,9 @@ interface ToolbarProps {
   onToggleAcrViewer: () => void
   showAcrViewer: boolean
   onNewPr: () => void
+  onNewLogs: () => void
   onOpenCactbot: () => void
+  onOpenFflogs: () => void
   onOpenSettings: () => void
   fileName: string | null
   isDirty: boolean
@@ -26,18 +29,39 @@ interface ToolbarProps {
   onCheckUpdate?: () => void
 }
 
+const MODE_META: Record<EditorMode, { icon: LucideIcon; label: string; cls: string }> = {
+  ae: {
+    icon: Workflow, label: 'AE 时间轴',
+    cls: 'border-indigo-700 bg-indigo-900/70 text-indigo-100'
+  },
+  pr: {
+    icon: Clock3, label: 'PR 时间轴',
+    cls: 'border-emerald-700 bg-emerald-900/70 text-emerald-100'
+  },
+  logs: {
+    icon: Activity, label: '战斗日志',
+    cls: 'border-amber-700 bg-amber-900/70 text-amber-100'
+  }
+}
+
+const MODE_ORDER: EditorMode[] = ['ae', 'pr', 'logs']
+
 export function Toolbar(props: ToolbarProps) {
-  const isPr = props.mode === 'pr'
+  const mode = props.mode
   return <div className="flex h-11 shrink-0 select-none items-center gap-1 border-b border-gray-700 bg-gray-800 px-3">
-      <ModeButton isPr={isPr} onClick={props.onToggleMode} />
+      <ModeSwitcher mode={mode} onSwitch={props.onSwitchMode} />
       <Divider />
-      <DocumentCommands isPr={isPr} props={props} />
+      <DocumentCommands mode={mode} props={props} />
       <Divider />
-      <HistoryCommands isPr={isPr} />
-      <Divider />
-      <ToolbarCommand icon={Code2} label="脚本" title="切换脚本编辑器"
-        active={props.showScript} onClick={props.onToggleScript} />
-      {!isPr && (
+      <HistoryCommands mode={mode} />
+      {mode !== 'logs' && (
+        <>
+          <Divider />
+          <ToolbarCommand icon={Code2} label="脚本" title="切换脚本编辑器"
+            active={props.showScript} onClick={props.onToggleScript} />
+        </>
+      )}
+      {mode === 'ae' && (
         <ToolbarCommand icon={ScanSearch} label="ACR" title="切换 ACR 类型浏览器"
           active={props.showAcrViewer} onClick={props.onToggleAcrViewer} />
       )}
@@ -51,22 +75,37 @@ export function Toolbar(props: ToolbarProps) {
     </div>
 }
 
-function ModeButton({ isPr, onClick }: { isPr: boolean; onClick: () => void }) {
-  const Icon = isPr ? Clock3 : Workflow
-  return <button type="button" onClick={onClick}
-    className={`command-button font-semibold ${isPr
-      ? 'border-emerald-700 bg-emerald-900/70 text-emerald-100 hover:bg-emerald-800'
-      : 'border-indigo-700 bg-indigo-900/70 text-indigo-100 hover:bg-indigo-800'}`}
-    title={isPr ? '切换到 AE 时间轴' : '切换到 PromeRotation 时间轴'}>
-    <Icon size={16} />{isPr ? 'PR 时间轴' : 'AE 时间轴'}
-  </button>
+function ModeSwitcher({ mode, onSwitch }: { mode: EditorMode; onSwitch: (mode: EditorMode) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-gray-700 bg-gray-900/60 p-0.5"
+      role="tablist" aria-label="编辑模式">
+      {MODE_ORDER.map(m => {
+        const meta = MODE_META[m]
+        const Icon = meta.icon
+        const active = m === mode
+        return (
+          <button key={m} type="button" role="tab" aria-selected={active}
+            onClick={() => onSwitch(m)}
+            title={active ? meta.label : `切换到 ${meta.label}`}
+            className={`flex h-7 items-center gap-1.5 rounded border px-2 text-xs font-semibold transition-colors
+              ${active ? meta.cls : 'border-transparent text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}>
+            <Icon size={15} />{meta.label}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
-function DocumentCommands({ isPr, props }: { isPr: boolean; props: ToolbarProps }) {
+function DocumentCommands({ mode, props }: { mode: EditorMode; props: ToolbarProps }) {
   return <>
-    {isPr && <>
+    {mode === 'pr' && <>
       <ToolbarCommand icon={Plus} label="新建" title="新建 PR 时间轴" onClick={props.onNewPr} />
       <ToolbarCommand icon={Import} label="Cactbot" title="导入 cactbot 官方时间轴" onClick={props.onOpenCactbot} />
+    </>}
+    {mode === 'logs' && <>
+      <ToolbarCommand icon={Plus} label="新建" title="新建战斗日志时间轴" onClick={props.onNewLogs} />
+      <ToolbarCommand icon={Download} label="FFLogs" title="从 FFLogs 导入战斗记录" onClick={props.onOpenFflogs} />
     </>}
     <ToolbarIcon icon={FolderOpen} label="打开" title="打开（Ctrl+O）" onClick={props.onOpen} />
     <ToolbarIcon icon={Save} label="保存" title="保存（Ctrl+S）" onClick={props.onSave} />
@@ -74,7 +113,7 @@ function DocumentCommands({ isPr, props }: { isPr: boolean; props: ToolbarProps 
   </>
 }
 
-function HistoryCommands({ isPr }: { isPr: boolean }) {
+function HistoryCommands({ mode }: { mode: EditorMode }) {
   // 直接调 store —— 之前用合成 KeyboardEvent 转发，但事件不冒泡，按钮静默失效
   const aeUndo = useStore(s => s.undo)
   const aeRedo = useStore(s => s.redo)
@@ -84,11 +123,15 @@ function HistoryCommands({ isPr }: { isPr: boolean }) {
   const prRedo = usePrStore(s => s.redo)
   const prCanUndo = usePrStore(s => s.undoStack.length > 0)
   const prCanRedo = usePrStore(s => s.redoStack.length > 0)
+  const logsUndo = useLogsStore(s => s.undo)
+  const logsRedo = useLogsStore(s => s.redo)
+  const logsCanUndo = useLogsStore(s => s.undoStack.length > 0)
+  const logsCanRedo = useLogsStore(s => s.redoStack.length > 0)
 
-  const undo = isPr ? prUndo : aeUndo
-  const redo = isPr ? prRedo : aeRedo
-  const canUndo = isPr ? prCanUndo : aeCanUndo
-  const canRedo = isPr ? prCanRedo : aeCanRedo
+  const undo = mode === 'pr' ? prUndo : mode === 'logs' ? logsUndo : aeUndo
+  const redo = mode === 'pr' ? prRedo : mode === 'logs' ? logsRedo : aeRedo
+  const canUndo = mode === 'pr' ? prCanUndo : mode === 'logs' ? logsCanUndo : aeCanUndo
+  const canRedo = mode === 'pr' ? prCanRedo : mode === 'logs' ? logsCanRedo : aeCanRedo
 
   return <>
     <ToolbarIcon icon={Undo2} label="撤销" title="撤销（Ctrl+Z）" onClick={undo} disabled={!canUndo} />

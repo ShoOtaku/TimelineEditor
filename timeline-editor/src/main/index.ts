@@ -1,20 +1,23 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { existsSync } from 'fs'
-import { readFile, readdir, stat, writeFile } from 'fs/promises'
+import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { registerAcrIpc } from './acrIpc'
 import {
   applyCurrentProxy,
   getAcrDir,
   getAeDirectory,
+  getLogsDirectory,
   getPrDirectory,
   getTriggerlinesDir,
   loadAppConfig,
   registerSettingsIpc,
   setAeDirectory,
+  setLogsDirectory,
   setPrDirectory
 } from './appConfig'
 import { registerCactbotIpc } from './cactbotIpc'
+import { registerFflogsIpc } from './fflogsIpc'
 import { installUpdate, cleanupLeftoverFiles } from './installer'
 import { checkForUpdates, downloadUpdate, getVersion } from './updater'
 
@@ -123,6 +126,33 @@ function registerOpenSaveDialogs(): void {
     showSaveDialog('保存 PromeRotation 时间轴', join(getPrDirectory(), name || 'NewTimeline.json'), ['json']))
 }
 
+async function ensureLogsDirectory(): Promise<string> {
+  const directory = getLogsDirectory()
+  if (!existsSync(directory)) await mkdir(directory, { recursive: true })
+  return directory
+}
+
+function registerLogsDirectoryIpc(): void {
+  ipcMain.handle('app:getLogsDir', () => getLogsDirectory())
+  ipcMain.handle('dialog:selectLogsDirectory', async () => {
+    if (!mainWindow) return { cancelled: true }
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择战斗日志时间轴目录（LogsTimelines）',
+      defaultPath: await ensureLogsDirectory(),
+      properties: ['openDirectory']
+    })
+    const directory = result.filePaths[0]
+    if (result.canceled || !directory) return { cancelled: true }
+    await setLogsDirectory(directory)
+    BrowserWindow.getAllWindows().forEach(window => window.webContents.send('logs:directoryChanged', directory))
+    return { cancelled: false, directory }
+  })
+  ipcMain.handle('dialog:openLogsFile', async () =>
+    showOpenDialog('打开战斗日志时间轴', await ensureLogsDirectory(), ['json']))
+  ipcMain.handle('dialog:saveLogsFile', async (_event, name?: string) =>
+    showSaveDialog('保存战斗日志时间轴', join(await ensureLogsDirectory(), name || 'NewLogsTimeline.json'), ['json']))
+}
+
 async function showOpenDialog(title: string, defaultPath: string, extensions: string[]) {
   if (!mainWindow) return { cancelled: true }
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -172,18 +202,32 @@ function registerMiscIpc(): void {
       return { success: true, data: JSON.parse(content) }
     } catch (error) { return { success: false, error: String(error), data: {} } }
   })
+  ipcMain.handle('app:loadJobSkills', async () => {
+    try {
+      const content = await readFile(join(__dirname, '../data/job-skills.json'), 'utf-8')
+      return { success: true, data: JSON.parse(content) }
+    } catch (error) { return { success: false, error: String(error) } }
+  })
+  ipcMain.handle('app:loadActionNames', async () => {
+    try {
+      const content = await readFile(join(__dirname, '../data/action-names-cn.json'), 'utf-8')
+      return { success: true, data: JSON.parse(content) }
+    } catch (error) { return { success: false, error: String(error) } }
+  })
 }
 
 function registerAllIpc(): void {
   registerFileIpc()
   registerAeDirectoryIpc()
   registerPrDirectoryIpc()
+  registerLogsDirectoryIpc()
   registerOpenSaveDialogs()
   registerUpdaterIpc()
   registerMiscIpc()
   registerSettingsIpc()
   registerAcrIpc(getTriggerlinesDir, getAcrDir)
   registerCactbotIpc()
+  registerFflogsIpc()
 }
 
 registerAllIpc()
