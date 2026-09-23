@@ -37,6 +37,7 @@ import { StatusBar } from './components/StatusBar'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { useStore } from './store'
 import { usePrStore } from './store/prStore'
+import { useUiSettings } from './store/uiSettingsStore'
 import { askConfirm, askPrompt } from './store/dialogStore'
 import { DialogHost } from './components/DialogHost'
 import { PrSidebar } from './pr/PrSidebar'
@@ -81,9 +82,13 @@ export default function App() {
   const [showCactbotImport, setShowCactbotImport] = useState(false)
   const [showFflogsImport, setShowFflogsImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const fontSizePercent = useUiSettings(s => s.fontSizePercent)
+  const setFontSizePercent = useUiSettings(s => s.setFontSizePercent)
 
   const isPr = editorMode === 'pr'
   const isLogs = editorMode === 'logs'
+  const uiZoom = fontSizePercent / 100
+  const activeFileName = isPr ? prFileName : isLogs ? logsFileName : fileName
 
   // Drag-to-resize helper: listeners are removed on mouseup (the old inline
   // version leaked a new mousemove listener on every drag)
@@ -278,6 +283,22 @@ export default function App() {
     loadAcrTypes()
   }, [loadSpellLookup, loadAcrTypes])
 
+  // Load persisted UI settings (font size) on startup
+  useEffect(() => {
+    window.electronAPI.getSettings()
+      .then(s => {
+        if (typeof s.fontSizePercent === 'number' && Number.isFinite(s.fontSizePercent)) {
+          setFontSizePercent(s.fontSizePercent)
+        }
+      })
+      .catch(() => { /* 读取失败则保持默认大小 */ })
+  }, [setFontSizePercent])
+
+  // 切换模式/文件时同步窗口标题，让标题始终指向当前正在编辑的文档
+  useEffect(() => {
+    document.title = activeFileName ? `Timeline Editor - ${activeFileName}` : 'Timeline Editor'
+  }, [activeFileName])
+
   // Listen for auto-check update available notification
   useEffect(() => {
     const unsub = window.electronAPI.onUpdateAvailable(() => {
@@ -299,44 +320,50 @@ export default function App() {
   return (
     <ErrorBoundary>
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-900">
-      <Toolbar
-        mode={editorMode}
-        onSwitchMode={setEditorMode}
-        onOpen={handleOpen}
-        onSave={handleSave}
-        onSaveAs={handleSaveAs}
-        onToggleScript={() => setShowScript(s => !s)}
-        showScript={showScript}
-        onToggleAcrViewer={() => setShowAcrViewer(s => !s)}
-        showAcrViewer={showAcrViewer}
-        onNewPr={handleNewPr}
-        onNewLogs={handleNewLogs}
-        onOpenCactbot={() => setShowCactbotImport(true)}
-        onOpenFflogs={() => setShowFflogsImport(true)}
-        onOpenSettings={() => setShowSettings(true)}
-        fileName={isPr ? prFileName : isLogs ? logsFileName : fileName}
-        isDirty={isPr ? prIsDirty : isLogs ? logsIsDirty : isDirty}
-        updateAvailable={updateAvailable}
-        onCheckUpdate={handleCheckUpdate}
-      />
+      <div style={{ zoom: uiZoom }} className="flex-shrink-0">
+        <Toolbar
+          mode={editorMode}
+          onSwitchMode={setEditorMode}
+          onOpen={handleOpen}
+          onSave={handleSave}
+          onSaveAs={handleSaveAs}
+          onToggleScript={() => setShowScript(s => !s)}
+          showScript={showScript}
+          onToggleAcrViewer={() => setShowAcrViewer(s => !s)}
+          showAcrViewer={showAcrViewer}
+          onNewPr={handleNewPr}
+          onNewLogs={handleNewLogs}
+          onOpenCactbot={() => setShowCactbotImport(true)}
+          onOpenFflogs={() => setShowFflogsImport(true)}
+          onOpenSettings={() => setShowSettings(true)}
+          fileName={activeFileName}
+          isDirty={isPr ? prIsDirty : isLogs ? logsIsDirty : isDirty}
+          updateAvailable={updateAvailable}
+          onCheckUpdate={handleCheckUpdate}
+        />
+      </div>
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div style={{ width: sidebarWidth }} className="flex-shrink-0 border-r border-gray-700 overflow-hidden">
-          {isPr ? <PrSidebar /> : isLogs ? <LogsSidebar /> : <Sidebar />}
+        {/* Sidebar — 三模式面板保持挂载（display:none 隐藏），切换回来时滚动/展开状态原样保留 */}
+        <div style={{ width: sidebarWidth, zoom: uiZoom }} className="flex-shrink-0 border-r border-gray-700 overflow-hidden">
+          <div className={!isPr && !isLogs ? 'h-full' : 'hidden'}><Sidebar /></div>
+          <div className={isPr ? 'h-full' : 'hidden'}><PrSidebar /></div>
+          <div className={isLogs ? 'h-full' : 'hidden'}><LogsSidebar /></div>
         </div>
 
         {/* Resizer: sidebar | canvas */}
         <div
           className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
           onMouseDown={() => startResize((ev) => {
-            setSidebarWidth(Math.max(160, Math.min(400, ev.clientX)))
+            setSidebarWidth(Math.max(160, Math.min(400, ev.clientX / uiZoom)))
           })}
         />
 
         {/* Canvas + Script area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-hidden">
-            {isPr ? <PrTimelineView /> : isLogs ? <LogsTimelineView /> : <TreeView />}
+          <div className="flex-1 overflow-hidden" style={{ zoom: uiZoom }}>
+            <div className={!isPr && !isLogs ? 'h-full' : 'hidden'}><TreeView /></div>
+            <div className={isPr ? 'h-full' : 'hidden'}><PrTimelineView /></div>
+            <div className={isLogs ? 'h-full' : 'hidden'}><LogsTimelineView /></div>
           </div>
 
           {showScript && !isLogs && (
@@ -344,11 +371,13 @@ export default function App() {
               <div
                 className="h-1 bg-gray-700 hover:bg-blue-500 cursor-row-resize flex-shrink-0 transition-colors"
                 onMouseDown={() => startResize((ev) => {
-                  setScriptHeight(Math.max(150, Math.min(window.innerHeight - 200, window.innerHeight - ev.clientY)))
+                  setScriptHeight(Math.max(150, Math.min(window.innerHeight - 200, (window.innerHeight - ev.clientY) / uiZoom)))
                 })}
               />
+              {/* Monaco 不随界面 zoom（避免鼠标定位偏移），字体大小通过 editor fontSize 选项缩放 */}
               <div style={{ height: scriptHeight }} className="flex-shrink-0 overflow-hidden">
-                {isPr ? <PrScriptPanel /> : <ScriptPanel />}
+                <div className={isPr ? 'hidden' : 'h-full'}><ScriptPanel /></div>
+                <div className={isPr ? 'h-full' : 'hidden'}><PrScriptPanel /></div>
               </div>
             </>
           )}
@@ -358,16 +387,21 @@ export default function App() {
         <div
           className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
           onMouseDown={() => startResize((ev) => {
-            setPanelWidth(Math.max(260, Math.min(500, window.innerWidth - ev.clientX)))
+            setPanelWidth(Math.max(260, Math.min(500, (window.innerWidth - ev.clientX) / uiZoom)))
           })}
         />
 
         {/* Property Panel / ACR Viewer */}
-        <div style={{ width: panelWidth }} className="flex-shrink-0 border-l border-gray-700 overflow-hidden">
-          {isPr ? <PrPropertyPanel /> : isLogs ? <LogsPropertyPanel /> : showAcrViewer ? <AcrViewerPanel /> : <PropertyPanel />}
+        <div style={{ width: panelWidth, zoom: uiZoom }} className="flex-shrink-0 border-l border-gray-700 overflow-hidden">
+          <div className={!isPr && !isLogs && !showAcrViewer ? 'h-full' : 'hidden'}><PropertyPanel /></div>
+          <div className={!isPr && !isLogs && showAcrViewer ? 'h-full' : 'hidden'}><AcrViewerPanel /></div>
+          <div className={isPr ? 'h-full' : 'hidden'}><PrPropertyPanel /></div>
+          <div className={isLogs ? 'h-full' : 'hidden'}><LogsPropertyPanel /></div>
         </div>
       </div>
-      <StatusBar />
+      <div style={{ zoom: uiZoom }} className="flex-shrink-0">
+        <StatusBar />
+      </div>
       <KeyboardShortcuts />
       <DialogHost />
       {showUpdate && <UpdateDialog onClose={() => { setShowUpdate(false); setUpdateAvailable(false) }} />}

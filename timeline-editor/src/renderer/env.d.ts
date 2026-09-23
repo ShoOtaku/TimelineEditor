@@ -78,6 +78,9 @@ interface ElectronAPI {
   setProxySettings(settings: ProxySettings): Promise<
     { success: true; settings: ProxySettings } | { success: false; error: string }
   >
+  setFontSize(percent: number): Promise<
+    { success: true; fontSizePercent: number } | { success: false; error: string }
+  >
   listCactbotFiles(refresh?: boolean): Promise<CactbotCatalogResult>
   downloadCactbotFile(path: string, hasLocalization: boolean): Promise<CactbotDownloadResult>
   testCactbotProxy(): Promise<ProxyTestResult>

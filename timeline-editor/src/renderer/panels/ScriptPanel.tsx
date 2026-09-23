@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import Editor, { OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
+import { useUiSettings } from '../store/uiSettingsStore'
 
 export function ScriptPanel() {
   const doc = useStore(s => s.doc)
@@ -26,6 +27,13 @@ export function ScriptPanel() {
   // Last value known to match the store — the debounced apply skips no-op writes,
   // otherwise merely opening the panel would push an undo entry and mark the doc dirty.
   const syncedRef = useRef('')
+
+  // 跟随设置中的界面字体缩放（Monaco 不用 CSS zoom，避免鼠标定位偏移）
+  const fontSizePercent = useUiSettings(s => s.fontSizePercent)
+  const editorFontSize = Math.max(8, Math.round(12 * fontSizePercent / 100))
+  useEffect(() => {
+    editorRef.current?.updateOptions({ fontSize: editorFontSize })
+  }, [editorFontSize])
 
   useEffect(() => {
     const next = isOpener
@@ -102,7 +110,7 @@ export function ScriptPanel() {
           }
           options={{
             minimap: { enabled: false },
-            fontSize: 12,
+            fontSize: editorFontSize,
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
             wordWrap: 'on',

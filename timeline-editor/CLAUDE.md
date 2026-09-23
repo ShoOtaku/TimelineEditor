@@ -41,6 +41,7 @@ timeline-editor/
 │       │   ├── prStore.ts      # PR 文档/文件/锚点/行为组 + editorMode（AE/PR 全局切换）
 │       │   ├── prStoreTypes.ts # PR store 接口 + 选中模型 + undo 助手
 │       │   ├── prNodeSlice.ts  # PR 节点树操作切片（增/删/移/复制/同级插入）
+│       │   ├── uiSettingsStore.ts # 界面设置（fontSizePercent 字体缩放）
 │       │   └── dialogStore.ts  # 应用内对话框请求队列（askConfirm / askPrompt）
 │       ├── pr/                 # PromeRotation 编辑器
 │       │   ├── prModel.ts      # 工厂/校验（移植 PtlDefinition 规则）/时间格式化/树辅助
@@ -257,6 +258,7 @@ interface AcrTypeDef {
 `app:getAeDirectory` `app:getAcrDir` | `acr:listDlls` `acr:discoverTypes` |
 `app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile` |
 `app:getLogsDir` `dialog:selectLogsDirectory` `dialog:openLogsFile` `dialog:saveLogsFile` |
+`settings:get` `settings:setProxy` `settings:setFontSize` |
 `fflogs:fetchReport` `fflogs:fetchCasts` `fflogs:cancelCasts`（进度事件 `fflogs:progress`）
 
 ### 战斗日志（logs 模式）要点
@@ -272,6 +274,11 @@ interface AcrTypeDef {
 ### Preload 事件监听
 
 `onAeDirectoryChanged(cb)`、`onPrDirectoryChanged(cb)` 和 `onAcrTypesChanged(cb)` 通过 `ipcRenderer.on` + 返回 unsubscribe 函数实现。
+
+### 界面设置与模式切换
+
+- **字体大小**：`AppSettings.fontSizePercent`（默认 100，钳制 50–200）持久化在 ae-config.json，经 `settings:setFontSize` IPC 保存；渲染进程存于 `store/uiSettingsStore.ts`。App 对工具栏/侧栏/中央视图/属性面板/状态栏施加 CSS `zoom`（面板拖拽分隔条按 zoom 换算回布局 px）；Monaco 不用 zoom（避免鼠标定位偏移），两个脚本面板用 `editor.updateOptions({ fontSize })` 跟随（基准 12px）。设置对话框中选择档位立即生效并保存
+- **模式切换保留工作现场**：AE/PR/战斗日志三个模式的侧栏、中央视图、属性面板（含 AE 的 ACR 浏览器）全部保持挂载，切模式只是 `display:none` 切换——各模式文档本就在独立 store 中，挂载保留后滚动位置、树展开状态、筛选文本、Monaco 光标/undo 都原样恢复；切换模式时 `document.title` 同步为当前模式文件名
 
 ### 开发调试
 

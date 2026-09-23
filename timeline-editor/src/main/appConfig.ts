@@ -30,11 +30,19 @@ const DEFAULT_LOGS_DIR = join(
 
 const CONFIG_PATH = join(app.getPath('userData'), 'ae-config.json')
 
+const MIN_FONT_SIZE_PERCENT = 50
+const MAX_FONT_SIZE_PERCENT = 200
+
+export function clampFontSizePercent(value: number): number {
+  return Math.min(MAX_FONT_SIZE_PERCENT, Math.max(MIN_FONT_SIZE_PERCENT, Math.round(value)))
+}
+
 let settings: AppSettings = {
   aeDirectory: DEFAULT_AE_DIR,
   prDirectory: DEFAULT_PR_DIR,
   logsDirectory: DEFAULT_LOGS_DIR,
-  proxy: { ...DEFAULT_PROXY_SETTINGS }
+  proxy: { ...DEFAULT_PROXY_SETTINGS },
+  fontSizePercent: 100
 }
 
 export async function loadAppConfig(): Promise<void> {
@@ -53,6 +61,9 @@ export async function loadAppConfig(): Promise<void> {
     const proxy = validateProxySettings(raw.proxy)
     if (proxy.success) settings.proxy = proxy.settings
     else if (raw.proxy !== undefined) console.warn('Ignored invalid proxy settings:', proxy.error)
+    if (typeof raw.fontSizePercent === 'number' && Number.isFinite(raw.fontSizePercent)) {
+      settings.fontSizePercent = clampFontSizePercent(raw.fontSizePercent)
+    }
   } catch (error) {
     console.warn('Failed to load app config, using defaults:', error)
   }
@@ -71,7 +82,8 @@ export function getAppSettings(): AppSettings {
     aeDirectory: settings.aeDirectory,
     prDirectory: settings.prDirectory,
     logsDirectory: settings.logsDirectory,
-    proxy: { ...settings.proxy }
+    proxy: { ...settings.proxy },
+    fontSizePercent: settings.fontSizePercent
   }
 }
 
@@ -94,6 +106,21 @@ export async function setPrDirectory(directory: string): Promise<void> {
 export async function setLogsDirectory(directory: string): Promise<void> {
   settings.logsDirectory = directory
   await persistAppConfig()
+}
+
+export async function updateFontSizePercent(input: unknown): Promise<
+  { success: true; fontSizePercent: number } | { success: false; error: string }
+> {
+  if (typeof input !== 'number' || !Number.isFinite(input)) {
+    return { success: false, error: '无效的字体大小' }
+  }
+  settings.fontSizePercent = clampFontSizePercent(input)
+  try {
+    await persistAppConfig()
+    return { success: true, fontSizePercent: settings.fontSizePercent }
+  } catch (error) {
+    return { success: false, error: formatError(error) }
+  }
 }
 
 export async function updateProxySettings(input: unknown): Promise<
@@ -125,6 +152,7 @@ export async function updateProxySettings(input: unknown): Promise<
 export function registerSettingsIpc(): void {
   ipcMain.handle('settings:get', () => getAppSettings())
   ipcMain.handle('settings:setProxy', (_event, input: unknown) => updateProxySettings(input))
+  ipcMain.handle('settings:setFontSize', (_event, input: unknown) => updateFontSizePercent(input))
 }
 
 async function persistAppConfig(): Promise<void> {

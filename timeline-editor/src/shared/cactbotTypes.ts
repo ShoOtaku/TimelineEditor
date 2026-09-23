@@ -14,6 +14,8 @@ export interface AppSettings {
   prDirectory: string
   logsDirectory: string
   proxy: ProxySettings
+  /** 界面字体缩放百分比，100 = 默认大小 */
+  fontSizePercent: number
 }
 
 export interface CactbotCatalogFile {

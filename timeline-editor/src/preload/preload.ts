@@ -132,6 +132,9 @@ const api = {
   setProxySettings: (settings: ProxySettings): Promise<
     { success: true; settings: ProxySettings } | { success: false; error: string }
   > => ipcRenderer.invoke('settings:setProxy', settings),
+  setFontSize: (percent: number): Promise<
+    { success: true; fontSizePercent: number } | { success: false; error: string }
+  > => ipcRenderer.invoke('settings:setFontSize', percent),
   listCactbotFiles: (refresh = false): Promise<CactbotCatalogResult> =>
     ipcRenderer.invoke('cactbot:list', refresh),
   downloadCactbotFile: (path: string, hasLocalization: boolean): Promise<CactbotDownloadResult> =>

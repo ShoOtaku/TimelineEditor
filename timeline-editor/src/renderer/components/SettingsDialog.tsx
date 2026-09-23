@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  AlertCircle, CheckCircle2, FolderOpen, LoaderCircle, Network, Save, TestTube2
+  AlertCircle, CheckCircle2, FolderOpen, LoaderCircle, Network, Save, TestTube2, Type
 } from 'lucide-react'
 import type { AppSettings, ProxySettings, ProxyTestResult } from '@shared/cactbotTypes'
 import { DEFAULT_PROXY_SETTINGS, validateProxySettings } from '@shared/networkSettings'
+import { useUiSettings } from '../store/uiSettingsStore'
 import { ModalShell } from './ModalShell'
 
 interface SettingsDialogProps {
@@ -11,6 +12,8 @@ interface SettingsDialogProps {
 }
 
 type Feedback = { kind: 'success' | 'error' | 'info'; message: string } | null
+
+const FONT_SIZE_OPTIONS = [80, 90, 100, 110, 125, 150]
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const model = useSettingsModel()
@@ -41,7 +44,9 @@ function useSettingsModel() {
   const saveProxy = useSaveProxy(proxy, setProxy, setFeedback, setSaving)
   const testConnection = useTestConnection(saveProxy, setFeedback, setTesting)
   const selectDirectory = useDirectorySelection(setSettings, setFeedback)
-  return { settings, proxy, setProxy, feedback, saving, testing, saveProxy, testConnection, selectDirectory }
+  const fontSizePercent = useUiSettings(s => s.fontSizePercent)
+  const changeFontSize = useFontSizeChange(setSettings, setFeedback)
+  return { settings, proxy, setProxy, feedback, saving, testing, saveProxy, testConnection, selectDirectory, fontSizePercent, changeFontSize }
 }
 
 function useSaveProxy(
@@ -118,6 +123,32 @@ function useDirectorySelection(
   }, [setFeedback, setSettings])
 }
 
+function useFontSizeChange(
+  setSettings: Dispatch<SetStateAction<AppSettings | null>>,
+  setFeedback: Dispatch<SetStateAction<Feedback>>
+) {
+  const setFontSizePercent = useUiSettings(s => s.setFontSizePercent)
+  return useCallback(async (percent: number) => {
+    const previous = useUiSettings.getState().fontSizePercent
+    if (percent === previous) return
+    setFontSizePercent(percent) // 立即预览，持久化失败时回退
+    try {
+      const result = await window.electronAPI.setFontSize(percent)
+      if (!result.success) {
+        setFontSizePercent(previous)
+        setFeedback({ kind: 'error', message: result.error })
+        return
+      }
+      setFontSizePercent(result.fontSizePercent)
+      setSettings(current => current ? { ...current, fontSizePercent: result.fontSizePercent } : current)
+      setFeedback({ kind: 'success', message: `字体大小已调整为 ${result.fontSizePercent}%` })
+    } catch (error) {
+      setFontSizePercent(previous)
+      setFeedback({ kind: 'error', message: `保存字体大小失败: ${formatUiError(error)}` })
+    }
+  }, [setFontSizePercent, setSettings, setFeedback])
+}
+
 type SettingsModel = ReturnType<typeof useSettingsModel>
 
 function SettingsFooter(model: SettingsModel) {
@@ -141,6 +172,7 @@ function SettingsBody(model: SettingsModel) {
   if (!model.settings) return <SettingsSkeleton />
   return <div className="divide-y divide-gray-700">
     <DirectoriesSection settings={model.settings} onSelect={model.selectDirectory} />
+    <AppearanceSection fontSizePercent={model.fontSizePercent} onChange={model.changeFontSize} />
     <NetworkSection proxy={model.proxy} setProxy={model.setProxy} />
   </div>
 }
@@ -154,6 +186,31 @@ function DirectoriesSection({ settings, onSelect }: {
     <div className="mt-4 space-y-3">
       <DirectoryRow label="AEAssist" path={settings.aeDirectory} onSelect={() => onSelect('ae')} />
       <DirectoryRow label="PromeRotation" path={settings.prDirectory} onSelect={() => onSelect('pr')} />
+    </div>
+  </section>
+}
+
+function AppearanceSection({ fontSizePercent, onChange }: {
+  fontSizePercent: number; onChange: (percent: number) => void
+}) {
+  return <section className="px-5 py-5" aria-labelledby="appearance-title">
+    <h3 id="appearance-title" className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+      <Type size={16} aria-hidden="true" /> 界面
+    </h3>
+    <p className="mt-1 text-xs text-gray-500">缩放整个界面的字体和控件大小，选择后立即生效并保存。</p>
+    <div className="mt-4">
+      <span className="text-xs font-medium text-gray-400">字体大小</span>
+      <div className="segmented-control mt-1.5 h-8"
+        style={{ gridTemplateColumns: `repeat(${FONT_SIZE_OPTIONS.length}, minmax(0, 1fr))` }}
+        role="group" aria-label="字体大小">
+        {FONT_SIZE_OPTIONS.map(percent => (
+          <button key={percent} type="button" aria-pressed={fontSizePercent === percent}
+            onClick={() => onChange(percent)}
+            className={fontSizePercent === percent ? 'is-active' : ''}>
+            {percent}%
+          </button>
+        ))}
+      </div>
     </div>
   </section>
 }
