@@ -13,11 +13,14 @@ const report: FflogsReportInfo = {
   friendlies: [
     { id: 1, name: '玩家甲', type: 'Paladin' },
     { id: 2, name: '玩家乙', type: 'DarkKnight' },
-    { id: 3, name: 'Limit Break', type: 'LimitBreak' }
+    { id: 3, name: 'Limit Break', type: 'LimitBreak' },
+    { id: 4, name: '其他场的玩家', type: 'Samurai' }   // 报告里但不在本场的实体
   ],
   enemies: [
     { id: 10, name: '终极BOSS', type: 'Boss' },
-    { id: 11, name: '小怪', type: 'NPC' }
+    { id: 11, name: '小怪', type: 'NPC' },
+    { id: 12, name: '其他场的BOSS', type: 'Boss' },
+    { id: 13, name: '其他场的怪', type: 'NPC' }
   ]
 }
 
@@ -71,12 +74,26 @@ function parse(overrides: Partial<Parameters<typeof parseFflogsFight>[0]> = {}) 
 }
 
 describe('parseFflogsFight', () => {
-  it('拆分玩家/BOSS/NPC，排除 LimitBreak', () => {
+  it('拆分玩家/BOSS/NPC，排除 LimitBreak 与本场未出现的实体', () => {
     const parsed = parse()
     expect(parsed.players.map(p => p.id)).toEqual([1, 2])
     expect(parsed.players[0].job).toBe('Paladin')
     expect(parsed.bosses.map(b => b.id)).toEqual([10])
     expect(parsed.npcs.map(n => n.id)).toEqual([11])
+  })
+
+  it('实体只保留所选战斗有施法记录的；未下载的数据流对应列表为空', () => {
+    // casts/enemyCasts 按战斗时间窗下载，报告范围的玩家 4 / BOSS 12 / NPC 13 不出现
+    const parsed = parse()
+    expect(parsed.players.some(p => p.id === 4)).toBe(false)
+    expect(parsed.bosses.some(b => b.id === 12)).toBe(false)
+    expect(parsed.npcs.some(n => n.id === 13)).toBe(false)
+    // 只下载事件流时玩家列表为空（映射页对应分区不显示）
+    expect(parse({ casts: [] }).players).toEqual([])
+    // 只下载技能流时敌方列表为空
+    const skillsOnly = parse({ enemyCasts: [] })
+    expect(skillsOnly.bosses).toEqual([])
+    expect(skillsOnly.npcs).toEqual([])
   })
 
   it('按 matchName 匹配技能并转为战斗相对时间，1000ms 内去重', () => {

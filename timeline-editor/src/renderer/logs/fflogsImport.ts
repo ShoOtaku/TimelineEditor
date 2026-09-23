@@ -35,9 +35,9 @@ export interface ParsedEnemyEvent {
 }
 
 export interface ParsedFflogsData {
-  /** friendlies 排除 LimitBreak */
+  /** friendlies 排除 LimitBreak，且只保留本场战斗有施法记录的（report 列表是整个报告范围） */
   players: { id: number; name: string; job: string }[]
-  /** enemies type === 'Boss' */
+  /** enemies type === 'Boss'，且只保留本场战斗有施法记录的 */
   bosses: { id: number; name: string }[]
   npcs: { id: number; name: string }[]
   /** 被跟踪技能名(matchName||name) → 玩家 id → 施放时间（相对战斗开始 ms，升序） */
@@ -103,14 +103,19 @@ export function parseFflogsFight(opts: FflogsParseOptions): ParsedFflogsData {
     return entry?.[0] || ability.name
   }
 
+  // report.friendlies/enemies 是整个报告范围的实体列表（v1 API 不提供按战斗划分的参与者）；
+  // casts 已按所选战斗的时间窗下载，按 sourceID 出现与否过滤出本场战斗的实体。
+  // 未下载对应数据流时（casts/enemyCasts 为空）列表为空，映射页对应分区本就不显示
+  const playerIds = new Set(opts.casts.map(c => c.sourceID))
+  const enemyIds = new Set(opts.enemyCasts.map(c => c.sourceID))
   const players = report.friendlies
-    .filter(a => a.type !== 'LimitBreak')
+    .filter(a => a.type !== 'LimitBreak' && playerIds.has(a.id))
     .map(a => ({ id: a.id, name: a.name, job: a.type }))
   const bosses = report.enemies
-    .filter(a => a.type === 'Boss')
+    .filter(a => a.type === 'Boss' && enemyIds.has(a.id))
     .map(a => ({ id: a.id, name: a.name }))
   const npcs = report.enemies
-    .filter(a => a.type !== 'Boss')
+    .filter(a => a.type !== 'Boss' && enemyIds.has(a.id))
     .map(a => ({ id: a.id, name: a.name }))
 
   const enemyNames = new Map(report.enemies.map(a => [a.id, a.name]))
