@@ -65,7 +65,7 @@ const api = {
     ipcRenderer.invoke('app:getBackupDir', filePath),
 
   // Spell data
-  loadSpellData: (): Promise<{ success: boolean; data: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number }>; error?: string }> =>
+  loadSpellData: (): Promise<{ success: boolean; data: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number; r?: number }>; error?: string }> =>
     ipcRenderer.invoke('app:loadSpellData'),
 
   // AE directory

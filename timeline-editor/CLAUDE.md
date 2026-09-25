@@ -3,7 +3,7 @@
 FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场战斗，**双来源**：ACT 本地日志（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep，`sim/simEvents.ts` 组装）或 FFLogs 报告（复用 fflogs:fetchReport/fetchCasts 与 FflogsImportDialog 的 ReportStep/FightStep，只下载 hostility=1 敌方施法，`sim/simFflogs.ts` 组装——casts 无 targetID，战斗边界直接用 FFLogs 的 fight.start/end_time，宠物按 enemies type='Pet' 过滤，同键 1s 去重防读条刷新重复消费 PendingSync）；事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）。ACT 路径开怪点判定=首个非宠物敌方来源或玩家指向敌方的战斗事件（`ActLogEvent.targetId` 参与），只保留非宠物敌方来源且默认全选。模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target 按技能表 `r`=EffectRange 复刻游戏内编辑器 Auto：0=Self、其余含近战 -1=Target，查不到回退 Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场战斗，**双来源**：ACT 本地日志（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep，`sim/simEvents.ts` 组装）或 FFLogs 报告（复用 fflogs:fetchReport/fetchCasts 与 FflogsImportDialog 的 ReportStep/FightStep，只下载 hostility=1 敌方施法，`sim/simFflogs.ts` 组装——casts 无 targetID，战斗边界直接用 FFLogs 的 fight.start/end_time，宠物按 enemies type='Pet' 过滤，同键 1s 去重防读条刷新重复消费 PendingSync）；事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）。ACT 路径开怪点判定=首个非宠物敌方来源或玩家指向敌方的战斗事件（`ActLogEvent.targetId` 参与），只保留非宠物敌方来源且默认全选。模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
 3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、ACT 本地日志导入（`actLogIpc.ts` 流式扫描 `Network_*.log`：按活动间隔分段战斗 → 时间窗提取 20/21/22 行 → 复用同一映射管线，向导四步：文件→战斗→解析→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构
@@ -197,7 +197,7 @@ Node { Id, Name, Type: serial|parallel|condition|action|branch|delay, Enabled, R
 
 ## 技能名数据（data/actions.json）
 
-全量 Action 表（43181 条，含 Boss/NPC 技能），锚点同步与技能字段都靠它显示中文名。
+全量 Action 表（45000+ 条，含 Boss/NPC 技能），锚点同步与技能字段都靠它显示中文名；`r`（EffectRange，近战=-1）供 PR 日志导入复刻游戏内编辑器的目标 Auto（0=Self、其余=Target）。
 
 ```bash
 python -X utf8 scripts/export_all_actions.py            # 默认读游戏本体，最权威
@@ -206,7 +206,7 @@ python -X utf8 scripts/export_all_actions.py --source csv   # 公开 datamining 
 ```
 
 - `scripts/exd_reader.py`：纯 Python SqPack + EXD 读取器，直接从 `{游戏目录}/game/sqpack/ffxiv/0a0000.*` 提取 Action 表。SqPack 路径哈希 = CRC32 寄存器值**不做最终取反**（即 `~zlib.crc32`）
-- **Action.exh 列索引**：0=Name、3=ActionCategory、10=ClassJob、28=CastType、68=IsPlayerAction。EXH 列序会随版本漂移，与 xivapi CSV 的列号不是一回事；换版本后若映射失效，用旧导出结果做交叉验证重新定位
+- **Action.exh 列索引**：0=Name、3=ActionCategory、10=ClassJob、15=EffectRange（sbyte，近战=-1）、28=CastType、68=IsPlayerAction。EXH 列序会随版本漂移，与 xivapi CSV 的列号不是一回事；换版本后若映射失效，用旧导出结果做交叉验证重新定位
 - EXDViewer 的 MCP 只在其设置向导完成后才监听 3001（见 EXDViewer `viewer/src/app.rs` 的 `mcp::start`）
 
 ### ACR 类型发现

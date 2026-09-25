@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ModalShell } from '../components/ModalShell'
 import { usePrStore } from '../store/prStore'
+import { useStore } from '../store'
 import { askAlert } from '../store/dialogStore'
 import { functionalAnchors, formatPrTime } from './prModel'
 import { formatTimeMs, isLogsTimelineDoc } from '../logs/logsTypes'
@@ -35,6 +36,7 @@ interface PrImportLogsDialogProps {
 export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
   const doc = usePrStore(s => s.doc)
   const importEntries = usePrStore(s => s.importEntries)
+  const spellLookup = useStore(s => s.spellLookup)
 
   const [step, setStep] = useState(1)
 
@@ -129,7 +131,7 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
   const lowConfidence = matches.filter(m => m.method === 'interpolated' || m.method === 'extrapolated').length
 
   const confirmImport = useCallback(() => {
-    const entries = buildSkillEntries(placements, matches)
+    const entries = buildSkillEntries(placements, matches, spellLookup)
     if (entries.length === 0) {
       askAlert({ title: '导入', message: '没有可导入的技能（全部缺少技能 ID 或超出范围）', danger: true })
       return
@@ -137,20 +139,20 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
     importEntries(entries)
     askAlert({
       title: '导入完成',
-      message: `已导入 ${entries.length} 个行为组（加入技能队列 / 目标=自己）` +
+      message: `已导入 ${entries.length} 个行为组（加入技能队列 / 目标按技能射程自动）` +
         (clampedCount > 0 ? `\n${clampedCount} 个技能因越界被钳制/改挂` : '') +
         (skippedCount > 0 ? `\n${skippedCount} 个技能被跳过` : '') +
         '\n保存前可用撤销一次性回退。'
     })
     onClose()
-  }, [placements, matches, importEntries, clampedCount, skippedCount, onClose])
+  }, [placements, matches, spellLookup, importEntries, clampedCount, skippedCount, onClose])
 
   const canNext = step === 1 ? logsDoc !== null : step === 2 ? matches.length > 0 : false
 
   return (
     <ModalShell
       title="从战斗日志导入技能"
-      description={`${STEPS.map((s, i) => `${i + 1 === step ? '●' : '○'} ${s}`).join('  ')} — 按锚点同步规则分段对齐，生成「加入技能队列」行为组（目标=自己）`}
+      description={`${STEPS.map((s, i) => `${i + 1 === step ? '●' : '○'} ${s}`).join('  ')} — 按锚点同步规则分段对齐，生成「加入技能队列」行为组（目标按技能射程自动：自身/当前目标）`}
       onClose={onClose}
       widthClass="max-w-4xl"
       footer={

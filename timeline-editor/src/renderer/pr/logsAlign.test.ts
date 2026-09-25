@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createAnchor } from './prModel'
-import { matchAnchorsToLog } from './logsAlign'
-import type { PtlAnchor } from '@shared/prTypes'
+import { buildSkillEntries, matchAnchorsToLog, resolveAutoTarget } from './logsAlign'
+import type { PtlAnchor, PtlEntry } from '@shared/prTypes'
 import type { LogsEvent } from '../logs/logsTypes'
 
 function anchor(time: number, actionId?: number): PtlAnchor {
@@ -55,5 +55,49 @@ describe('matchAnchorsToLog 留空（skips）', () => {
       new Set([anchors[1].Guid])
     )
     expect(matches.find(m => m.anchorGuid === anchors[1].Guid)?.method).toBe('interpolated')
+  })
+})
+
+describe('resolveAutoTarget（与游戏内编辑器 Auto 一致）', () => {
+  const lookup = {
+    '9': { r: -1 },   // 先锋剑：近战（运行时按武器射程判定，>0）
+    '142': { r: 25 }, // 冰结：远程
+    '10': { r: 0 },   // 铁壁：自身
+    '999': {}         // 无射程数据（MCP/CSV 兜底导出）
+  }
+
+  it('EffectRange=0 → Self，非 0（含近战 -1）→ Target', () => {
+    expect(resolveAutoTarget(10, lookup)).toBe('Self')
+    expect(resolveAutoTarget(142, lookup)).toBe('Target')
+    expect(resolveAutoTarget(9, lookup)).toBe('Target')
+  })
+
+  it('未知技能 / 缺射程数据 / 无表 → 回退 Self', () => {
+    expect(resolveAutoTarget(999, lookup)).toBe('Self')
+    expect(resolveAutoTarget(12345, lookup)).toBe('Self')
+    expect(resolveAutoTarget(undefined, lookup)).toBe('Self')
+    expect(resolveAutoTarget(142, null)).toBe('Self')
+    expect(resolveAutoTarget(142, undefined)).toBe('Self')
+  })
+})
+
+describe('buildSkillEntries 目标解析', () => {
+  it('按技能表写入 Target 字段（Auto 结果）', () => {
+    const lookup = { '9': { r: -1 }, '10': { r: 0 } }
+    const anchors = [anchor(0)]
+    const matches = [{ anchorGuid: anchors[0].Guid, prTime: 0, logMs: 0, method: 'start' as const }]
+    const placements = [
+      { use: { timeMs: 1000, name: '先锋剑', skillId: 9, kind: 'gcd' as const }, anchorGuid: anchors[0].Guid, offset: 1, clamped: false },
+      { use: { timeMs: 2000, name: '铁壁', skillId: 10, kind: 'ability' as const }, anchorGuid: anchors[0].Guid, offset: 2, clamped: false }
+    ]
+
+    const entries = buildSkillEntries(placements, matches, lookup)
+    const targetOf = (e: PtlEntry) => e.EntryGroup.Children?.[0]?.Actions?.[0]?.Target
+    expect(targetOf(entries[0])).toBe('Target')
+    expect(targetOf(entries[1])).toBe('Self')
+
+    // 不传技能表：保持旧行为（全部 Self）
+    const fallback = buildSkillEntries(placements, matches)
+    expect(fallback.every(e => targetOf(e) === 'Self')).toBe(true)
   })
 })

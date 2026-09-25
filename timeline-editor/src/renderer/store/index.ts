@@ -38,7 +38,7 @@ export interface EditorStore {
 
   // Spell lookup
   /** n=名称 c=ActionCategory t=技能种类 ct=CastType p=1 表示玩家技能 */
-  spellLookup: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number }> | null
+  spellLookup: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number; r?: number }> | null
   loadSpellLookup: () => Promise<void>
 
   // ACR types

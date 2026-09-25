@@ -11,10 +11,14 @@ Sources, tried in order:
   3. ffxiv-datamining-cn Action.csv — public dump, several patches behind.
 
 Output (compact, keyed by action id):
-  { "<id>": { "n": name, "c": categoryId, "t": spellType, "ct": castType, "p": isPlayerAction } }
+  { "<id>": { "n": name, "c": categoryId, "t": spellType, "ct": castType, "p": isPlayerAction,
+              "r": effectRange } }
 
   t (spell_type): 0=魔法 1=能力 2=战技 3=其他
   p: 1 for player actions (IsPlayerAction && !IsPvP && ClassJob >= 0)
+  r: EffectRange（sbyte，近战为 -1）。PR 日志导入用它复刻游戏内编辑器的目标 Auto：
+     r==0 → Self，其余 → Target。只有游戏本体路径导出该字段（MCP/CSV 兜底路径没有
+     可靠的列映射，导出的记录不带 r，编辑器按未知回退为 Self）。
 
 Usage:
   python -X utf8 scripts/export_all_actions.py                 # auto-detect game path
@@ -46,9 +50,13 @@ CAT_TO_TYPE_DEFAULT = 3
 # col 68 is True for every player action and false for every boss action sampled
 # from the real timelines. EXH column order drifts between patches — re-run
 # scripts/probe_action_columns.py logic if a future patch breaks the mapping.
+# COL_RANGE (EffectRange) verified against in-game targeting semantics on the
+# current CN client: melee = -1, self-only = 0, targeted = 5/8/10/20/25/30
+# (e.g. 9 先锋剑=-1, 120 治疗=30, 142 冰结=25, 7549 牵制=10, 7535 雪仇=0).
 COL_NAME = 0
 COL_CATEGORY = 3
 COL_CLASSJOB = 10
+COL_RANGE = 15
 COL_CAST_TYPE = 28
 COL_IS_PLAYER = 68
 
@@ -85,7 +93,7 @@ def try_game(game_path=None):
             continue
         print(f"  读取游戏本体：{path}", flush=True)
         gd = GameData(path)
-        columns = [COL_NAME, COL_CATEGORY, COL_CLASSJOB, COL_CAST_TYPE, COL_IS_PLAYER]
+        columns = [COL_NAME, COL_CATEGORY, COL_CLASSJOB, COL_CAST_TYPE, COL_IS_PLAYER, COL_RANGE]
         rows = gd.read_sheet("Action", columns, language=5)
 
         actions = {}
@@ -101,6 +109,7 @@ def try_game(game_path=None):
                 "t": CAT_TO_TYPE.get(category, CAT_TO_TYPE_DEFAULT),
                 "ct": int(values[3] or 0),
                 "p": 1 if bool(values[4]) else 0,
+                "r": int(values[5] or 0),
             }
         if actions:
             return actions

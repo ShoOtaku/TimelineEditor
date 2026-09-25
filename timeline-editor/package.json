@@ -1,6 +1,6 @@
 {
   "name": "timeline-editor",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "External Timeline Editor for FFXIV AEAssist Triggerlines",
   "main": "dist-electron/index.js",
   "scripts": {

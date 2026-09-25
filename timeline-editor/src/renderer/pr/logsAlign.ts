@@ -348,8 +348,25 @@ export function placeSkills(
   return placements
 }
 
-/** 每个有效 placement 生成一个 enqueueskill 行为组（默认目标 Self） */
-export function buildSkillEntries(placements: SkillPlacement[], matches: AnchorMatch[]): PtlEntry[] {
+/**
+ * 与游戏内编辑器的目标 Auto 一致（ActionHelper.TryResolveActionTargetType）：
+ * EffectRange=0 → Self，其余（含近战 -1，运行时按武器射程判定）→ Target。
+ * 技能表没有该 id 或没有射程数据时回退 Self（旧行为）。
+ */
+export function resolveAutoTarget(
+  skillId: number | undefined,
+  spellLookup: Record<string, { r?: number }> | null | undefined
+): string {
+  const range = skillId != null ? spellLookup?.[String(skillId)]?.r : undefined
+  return range != null && range !== 0 ? 'Target' : 'Self'
+}
+
+/** 每个有效 placement 生成一个 enqueueskill 行为组（目标按技能表 Auto 解析） */
+export function buildSkillEntries(
+  placements: SkillPlacement[],
+  matches: AnchorMatch[],
+  spellLookup?: Record<string, { r?: number }> | null
+): PtlEntry[] {
   const prTimeOf = new Map(matches.map(m => [m.anchorGuid, m.prTime]))
   const entries: PtlEntry[] = []
   for (const p of placements) {
@@ -361,7 +378,7 @@ export function buildSkillEntries(placements: SkillPlacement[], matches: AnchorM
     const action = createAction('enqueueskill')
     action.ActionId = p.use.skillId ?? null
     action.SkillType = p.use.kind === 'gcd' ? 'Gcd' : 'OffGcd'
-    action.Target = 'Self'
+    action.Target = resolveAutoTarget(p.use.skillId, spellLookup)
 
     const node = createNode('action', 2)
     node.Name = p.use.name
