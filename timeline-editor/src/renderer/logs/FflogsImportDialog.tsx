@@ -301,7 +301,7 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
   )
 }
 
-function ReportStep({ codeInput, setCodeInput, code, apiKey, setApiKey, loading, error, report, onQuery }: {
+export function ReportStep({ codeInput, setCodeInput, code, apiKey, setApiKey, loading, error, report, onQuery }: {
   codeInput: string; setCodeInput: (v: string) => void; code: string | null
   apiKey: string; setApiKey: (v: string) => void
   loading: boolean; error: string; report: FflogsReportInfo | null; onQuery: () => void
@@ -347,7 +347,7 @@ function ReportStep({ codeInput, setCodeInput, code, apiKey, setApiKey, loading,
   )
 }
 
-function FightStep({ report, fightId, onSelect }: {
+export function FightStep({ report, fightId, onSelect }: {
   report: FflogsReportInfo; fightId: number | null; onSelect: (id: number) => void
 }) {
   const fights = useMemo(() => [...report.fights].reverse(), [report])

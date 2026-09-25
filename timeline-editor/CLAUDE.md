@@ -3,7 +3,7 @@
 FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场 ACT 日志战斗（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep），`sim/simEvents.ts` 组装事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）；模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场战斗，**双来源**：ACT 本地日志（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep，`sim/simEvents.ts` 组装）或 FFLogs 报告（复用 fflogs:fetchReport/fetchCasts 与 FflogsImportDialog 的 ReportStep/FightStep，只下载 hostility=1 敌方施法，`sim/simFflogs.ts` 组装——casts 无 targetID，战斗边界直接用 FFLogs 的 fight.start/end_time，宠物按 enemies type='Pet' 过滤，同键 1s 去重防读条刷新重复消费 PendingSync）；事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）。ACT 路径开怪点判定=首个非宠物敌方来源或玩家指向敌方的战斗事件（`ActLogEvent.targetId` 参与），只保留非宠物敌方来源且默认全选。模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
 3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、ACT 本地日志导入（`actLogIpc.ts` 流式扫描 `Network_*.log`：按活动间隔分段战斗 → 时间窗提取 20/21/22 行 → 复用同一映射管线，向导四步：文件→战斗→解析→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构
@@ -57,13 +57,13 @@ timeline-editor/
 │       │   ├── PrConditionEditor.tsx # 条件编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrActionEditor.tsx    # 动作编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrScriptPanel.tsx    # Monaco C# 编辑器（scriptTarget: csharprunningaction 节点 Script / Meta.CustomOpener.Script，500ms 防抖自动应用）
-│       │   ├── PrSimDialog.tsx   # ▶ 模拟测试导入向导（文件→战斗→设置，复用 ActImportDialog 步骤组件）
-│       │   ├── sim/              # ACT 战斗模拟内核（纯函数）
+│       │   ├── PrSimDialog.tsx   # ▶ 模拟测试导入向导（ACT/FFLogs 双来源，复用两导入向导的步骤组件）
+│       │   ├── sim/              # 战斗模拟内核（纯函数）
 │       │   │   ├── simEngine.ts  # 插件运行时语义移植（SyncMatcher/SegmentTracker/TimelineClock），含 summarizeSim
-│       │   │   ├── simEvents.ts  # ActLogEvent[] → SimInputEvent[]（仅非宠物敌方来源、默认全选；开怪点判定）
+│       │   │   ├── simEvents.ts  # ACT ActLogEvent[] → SimInputEvent[]（仅非宠物敌方来源、默认全选；开怪点判定）
+│       │   │   ├── simFflogs.ts  # FFLogs casts → SimInputEvent[]（战斗边界即开怪点；Pet 过滤；1s 去重）
 │       │   │   ├── simStore.ts   # 模拟会话（事件流+来源描述；结果由视图 useMemo 实时重算）
-│       │   │   ├── simEngine.test.ts # 合成事件流单测（30 例）
-│       │   │   └── simEvents.test.ts # 开怪点/来源过滤单测
+│       │   │   └── *.test.ts     # 内核/ACT 事件流/FFLogs 事件流单测
 │       │   └── prFields.tsx    # 共享字段组件（PrField/PrNumberInput/技能名提示）
 │       ├── components/
 │       │   ├── TreeView.tsx    # 可展开树列表
