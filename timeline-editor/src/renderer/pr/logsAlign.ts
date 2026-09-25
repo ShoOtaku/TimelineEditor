@@ -116,11 +116,13 @@ export function candidateEventsForAnchor(anchor: PtlAnchor, events: LogsEvent[])
  * anchors 为有序功能锚点（不含 End）。首个锚点强制对齐日志 0 点（method=start），
  * 匹配不上的锚点第二趟用分段线性插值/外推补齐。
  * pins：人工钉选的 anchorGuid → LogsEvent.id，钉选锚点直接使用该事件并以其为基准继续匹配。
+ * skips：人工留空的 anchorGuid 集合，留空锚点不参与匹配，与未匹配锚点一样插值/外推补齐。
  */
 export function matchAnchorsToLog(
   anchors: PtlAnchor[],
   events: LogsEvent[],
-  pins?: ReadonlyMap<string, string>
+  pins?: ReadonlyMap<string, string>,
+  skips?: ReadonlySet<string>
 ): AnchorMatch[] {
   const sortedEvents = [...events].sort((a, b) => a.timeMs - b.timeMs)
   const matches: AnchorMatch[] = []
@@ -132,6 +134,12 @@ export function matchAnchorsToLog(
   const pending: (AnchorMatch | null)[] = [matches[0]]
   for (let i = 1; i < anchors.length; i++) {
     const anchor = anchors[i]
+
+    // 人工留空：不参与匹配，第二趟插值/外推补齐
+    if (skips?.has(anchor.Guid)) {
+      pending.push(null)
+      continue
+    }
 
     const pinnedEventId = pins?.get(anchor.Guid)
     if (pinnedEventId) {
@@ -149,11 +157,19 @@ export function matchAnchorsToLog(
     }
 
     const matcher = anchorSyncMatcher(anchor)
-    const prevLogMs = pending[i - 1]?.logMs ?? 0
+
+    // 前一个已确定锚点（跨越未匹配/留空者）：单调约束与期望时刻都以它为基准，
+    // 否则中间锚点留空后约束会重置到 0，后面的事件可能匹配到前面的锚点
+    let prevIdx = 0
+    for (let j = i - 1; j >= 0; j--) {
+      if (pending[j]) { prevIdx = j; break }
+    }
+    const prev = pending[prevIdx]!
+    const prevLogMs = prev.logMs
 
     // 运行缩放系数估计期望时刻：有匹配锚点对时用段缩放，否则沿用 scale=1
     let scale = 1000 // ms/s：默认 1 PR 秒 = 1000 ms
-    for (let j = i - 1; j > 0; j--) {
+    for (let j = prevIdx; j > 0; j--) {
       const a = pending[j]
       const b = pending[j - 1]
       if (a && b && a.prTime !== b.prTime) {
@@ -161,7 +177,7 @@ export function matchAnchorsToLog(
         break
       }
     }
-    const expectedLogMs = prevLogMs + (anchor.Time - anchors[i - 1].Time) * scale
+    const expectedLogMs = prevLogMs + (anchor.Time - prev.prTime) * scale
 
     let hit: LogsEvent | null = null
     let hitMs = 0

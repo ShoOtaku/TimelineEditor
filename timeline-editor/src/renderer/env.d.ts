@@ -8,6 +8,10 @@ import type {
   FflogsCastEvent, FflogsFetchCastsRequest, FflogsFetchProgress,
   FflogsReportInfo, FflogsResult
 } from '../shared/fflogsTypes'
+import type {
+  ActLogEvent, ActLogFileInfo, ActParseRequest, ActProgress,
+  ActResult, ActScanRequest, ActScanResult
+} from '../shared/actTypes'
 import type { JobSkillDatabase } from '../shared/jobSkillTypes'
 import type { ActionNameDatabase } from '../shared/actionNameTypes'
 
@@ -61,6 +65,17 @@ interface ElectronAPI {
   fetchFflogsCasts(req: FflogsFetchCastsRequest): Promise<FflogsResult<FflogsCastEvent[]>>
   cancelFflogsCasts(requestId: string): Promise<void>
   onFflogsProgress(callback: (p: FflogsFetchProgress) => void): () => void
+
+  // ACT 本地日志
+  listActLogFiles(dir?: string): Promise<ActResult<ActLogFileInfo[]>>
+  scanActLog(req: ActScanRequest): Promise<ActResult<ActScanResult>>
+  parseActLog(req: ActParseRequest): Promise<ActResult<ActLogEvent[]>>
+  cancelActLog(requestId: string): Promise<void>
+  onActProgress(callback: (p: ActProgress) => void): () => void
+  getActLogsDirectory(): Promise<string>
+  selectActLogsDirectory(): Promise<{ cancelled: boolean; directory?: string }>
+  openActLogFileDialog(): Promise<ElectronDialogResult>
+  onActLogsDirectoryChanged(callback: (newDir: string) => void): () => void
 
   // Job skill database
   loadJobSkills(): Promise<{ success: boolean; data?: JobSkillDatabase; error?: string }>

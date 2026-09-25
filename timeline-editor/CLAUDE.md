@@ -3,8 +3,8 @@
 FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选→落位预览），`importEntries` 整批一个撤销步。
-3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target=Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场 ACT 日志战斗（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep），`sim/simEvents.ts` 组装事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）；模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
+3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、ACT 本地日志导入（`actLogIpc.ts` 流式扫描 `Network_*.log`：按活动间隔分段战斗 → 时间窗提取 20/21/22 行 → 复用同一映射管线，向导四步：文件→战斗→解析→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构
 
@@ -57,6 +57,13 @@ timeline-editor/
 │       │   ├── PrConditionEditor.tsx # 条件编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrActionEditor.tsx    # 动作编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrScriptPanel.tsx    # Monaco C# 编辑器（scriptTarget: csharprunningaction 节点 Script / Meta.CustomOpener.Script，500ms 防抖自动应用）
+│       │   ├── PrSimDialog.tsx   # ▶ 模拟测试导入向导（文件→战斗→设置，复用 ActImportDialog 步骤组件）
+│       │   ├── sim/              # ACT 战斗模拟内核（纯函数）
+│       │   │   ├── simEngine.ts  # 插件运行时语义移植（SyncMatcher/SegmentTracker/TimelineClock），含 summarizeSim
+│       │   │   ├── simEvents.ts  # ActLogEvent[] → SimInputEvent[]（仅非宠物敌方来源、默认全选；开怪点判定）
+│       │   │   ├── simStore.ts   # 模拟会话（事件流+来源描述；结果由视图 useMemo 实时重算）
+│       │   │   ├── simEngine.test.ts # 合成事件流单测（30 例）
+│       │   │   └── simEvents.test.ts # 开怪点/来源过滤单测
 │       │   └── prFields.tsx    # 共享字段组件（PrField/PrNumberInput/技能名提示）
 │       ├── components/
 │       │   ├── TreeView.tsx    # 可展开树列表
@@ -67,10 +74,11 @@ timeline-editor/
 │       │   ├── KeyboardShortcuts.tsx
 │       │   ├── Canvas.tsx      # （旧版 ReactFlow 画布，已弃用）
 │       │   └── layout.ts       # Dagre 布局（旧画布用）
-│       ├── logs/               # 战斗日志模式（FFLogs 时间轴）
+│       ├── logs/               # 战斗日志模式（FFLogs/ACT 时间轴）
 │       │   ├── logsTypes.ts    # LogsTimelineDoc 模型 + 时间格式化/解析 + 排序插入
 │       │   ├── logsStore.ts    # Zustand+Immer — 文档/选择/缩放/undo（tag 合并）
 │       │   ├── fflogsImport.ts # 纯函数 — casts 解析（去重/匹配/begincast 配对算读条时长）
+│       │   ├── actImport.ts    # 纯函数 — ACT 窗口事件 → fflogsImport 入参转换（宠物/职业识别）
 │       │   ├── eventTracks.ts  # 纯函数 — BOSS 事件重叠区间轨道打包
 │       │   ├── actionIcons.ts  # 技能图标解析：本地库图标 id → xivapi 静态 CDN 优先，API 兜底
 │       │   ├── actionNames.ts  # 国服 Action 中文名库缓存单例（IPC 读 data/action-names-cn.json）
@@ -78,7 +86,9 @@ timeline-editor/
 │       │   ├── LogsTimelineView.tsx # 垂直 SVG 画布（刻度尺/BOSS 多轨道/GCD/能力列）
 │       │   ├── LogsSidebar.tsx # 文件列表 + 技能列管理（职业图标网格/自定义技能）
 │       │   ├── LogsPropertyPanel.tsx # 上下文属性面板（文档设置/事件/技能使用/列覆盖）
-│       │   └── FflogsImportDialog.tsx # 四步导入向导（报告→战斗→下载→映射）
+│       │   ├── ImportSteps.tsx # 导入向导共享组件（步骤条/开关/进度条/映射步骤）
+│       │   ├── ActImportDialog.tsx # ACT 四步导入向导（文件→战斗→解析→映射）
+│       │   └── FflogsImportDialog.tsx # FFLogs 四步导入向导（报告→战斗→下载→映射）
 │       └── panels/
 │           ├── PropertyPanel.tsx      # 属性编辑 + 动态条件/动作类型选择器（内置 + ACR）；未选中节点时显示 DocMetaPanel
 │           ├── DocMetaPanel.tsx       # AE 时间轴元数据编辑（updateDocMeta，GUID 重新生成，起手脚本入口）
@@ -250,7 +260,7 @@ interface AcrTypeDef {
 
 `loadFile(path)` → IPC `file:read` → `JSON.parse` → 写入 Zustand store。加载时清空 undo/redo。
 
-### IPC 通道（31 个）
+### IPC 通道（38 个）
 
 `file:read` `file:write` `file:exists` `file:stat` `file:listDir` |
 `dialog:openFile` `dialog:saveFile` `dialog:selectAeDirectory` |
@@ -259,7 +269,9 @@ interface AcrTypeDef {
 `app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile` |
 `app:getLogsDir` `dialog:selectLogsDirectory` `dialog:openLogsFile` `dialog:saveLogsFile` |
 `settings:get` `settings:setProxy` `settings:setFontSize` |
-`fflogs:fetchReport` `fflogs:fetchCasts` `fflogs:cancelCasts`（进度事件 `fflogs:progress`）
+`fflogs:fetchReport` `fflogs:fetchCasts` `fflogs:cancelCasts`（进度事件 `fflogs:progress`）|
+`app:getActLogsDir` `dialog:selectActLogsDirectory` `dialog:openActLogFile` |
+`act:listFiles` `act:scan` `act:parse` `act:cancel`（进度事件 `act:progress`）
 
 ### 战斗日志（logs 模式）要点
 
@@ -270,6 +282,15 @@ interface AcrTypeDef {
 - **BOSS 事件渲染**：`eventTracks.packEventTracks` 区间打包（200ms 间隔），每轨道一列 68px，图标+读条矩形；图标经 `actionIcons.resolveActionIcons` 按 `ability.guid` 解析：本地中文名库图标 id → xivapi 静态 CDN（`/i/{folder}/{file}.png`，不受 API 数据冻结影响）优先，xivapi/cafemaker API 兜底，导入时批量解析后写入文档
 - **技能库**：`scripts/build-job-skills.mjs` 从 ccinos/act_dps_show 官方职业指南数据生成 `data/job-skills.json`（21 职业 ~985 技能，含 CD/持续/威力/图标 URL），按名去重；图标走 `static.web.sdo.com` CDN，CSP `img-src` 白名单已加 xivapi/cafemaker/sdo，`connect-src` 已加 xivapi/cafemaker
 - **logs 目录**：默认 `%DOCUMENTS%/TimelineEditor/LogsTimelines`，持久化键 `logsDirectory`
+
+### ACT 本地日志导入要点
+
+- **行格式**（`|` 分隔，样本见 `shared/actTypes.ts` 头注）：01=ChangeZone、03=AddCombatant（[4]=职业 hex、[6]=归属者 hex）、20=StartsCast（含读条秒数）、21=Ability、22=AOE Ability（每个目标一行）。`actLogParser.ts` 纯函数逐行解析；时间戳 7 位小数截断为 3 位后 `Date.parse`；`ActLogEvent` 含 `targetId`（模拟器开怪点判定用，logs 导入忽略）
+- **敌我分类按单位 ID 段**：0x10xxxxxx=玩家、0x40xxxxxx=敌方/NPC、0xE0000000=环境；玩家召唤兽/化身也是 0x40 段，靠 03 行的归属者（ownerId≠0）识别为「宠物」，排在事件来源末尾且不参与 BOSS 启发式（施法次数最多的非宠物敌方标 BOSS）
+- **战斗分段**：对全部 20/21/22 行按时间间隔（默认 60s，可调）切分，区域切换强制切断；只保留有敌方参与且 ≥5 事件的段（过滤主城/野外噪声），分段逻辑在 `ActEncounterTracker`
+- **流式 IO**：`actLogScanner.ts` 按行流式读（100MB+ 文件扫描 <1s），扫描顺带收集单位表（非法职业值过滤）；窗口解析只取时间窗内事件、越过窗口 30s 即提前结束；IPC 层带进度（按字节）与 requestId 取消
+- **复用 FFLogs 管线**：渲染进程 `actImport.ts` 把窗口事件转成 `FflogsCastEvent`（21/22→cast、20→begincast）+ 合成报告实体，直接复用 `parseFflogsFight`/`autoAssignPlayers`/`buildImportPayload` 与映射界面（`ImportSteps.tsx`，FFLogs/ACT 两向导共用）；技能名同样按 guid 过国服中文名库（ACT 未识别的 `unknown_xxx` 可被修正）
+- **ACT 日志目录**：持久化键 `actLogsDirectory`；默认探测 `C:\Tools\ACT.DieMoe\FFXIVLogs`（呆萌整合版）→ `%APPDATA%\Advanced Combat Tracker\FFXIVLogs`
 
 ### Preload 事件监听
 

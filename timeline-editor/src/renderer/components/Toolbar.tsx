@@ -1,5 +1,5 @@
 import {
-  Activity, Clock3, Code2, Download, FolderOpen, Import, Plus, Redo2, RefreshCw,
+  Activity, Clock3, Code2, Download, FileClock, FolderOpen, Import, Plus, Redo2, RefreshCw,
   Save, SaveAll, ScanSearch, Settings, Undo2, Workflow
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -22,6 +22,7 @@ interface ToolbarProps {
   onNewLogs: () => void
   onOpenCactbot: () => void
   onOpenFflogs: () => void
+  onOpenAct: () => void
   onOpenSettings: () => void
   fileName: string | null
   isDirty: boolean
@@ -106,6 +107,7 @@ function DocumentCommands({ mode, props }: { mode: EditorMode; props: ToolbarPro
     {mode === 'logs' && <>
       <ToolbarCommand icon={Plus} label="新建" title="新建战斗日志时间轴" onClick={props.onNewLogs} />
       <ToolbarCommand icon={Download} label="FFLogs" title="从 FFLogs 导入战斗记录" onClick={props.onOpenFflogs} />
+      <ToolbarCommand icon={FileClock} label="ACT" title="从 ACT 本地日志导入战斗记录" onClick={props.onOpenAct} />
     </>}
     <ToolbarIcon icon={FolderOpen} label="打开" title="打开（Ctrl+O）" onClick={props.onOpen} />
     <ToolbarIcon icon={Save} label="保存" title="保存（Ctrl+S）" onClick={props.onSave} />

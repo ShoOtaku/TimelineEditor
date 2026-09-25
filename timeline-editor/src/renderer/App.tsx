@@ -48,6 +48,7 @@ import { LogsSidebar } from './logs/LogsSidebar'
 import { LogsTimelineView } from './logs/LogsTimelineView'
 import { LogsPropertyPanel } from './logs/LogsPropertyPanel'
 import { FflogsImportDialog } from './logs/FflogsImportDialog'
+import { ActImportDialog } from './logs/ActImportDialog'
 import { useLogsStore } from './logs/logsStore'
 
 export default function App() {
@@ -81,6 +82,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showCactbotImport, setShowCactbotImport] = useState(false)
   const [showFflogsImport, setShowFflogsImport] = useState(false)
+  const [showActImport, setShowActImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const fontSizePercent = useUiSettings(s => s.fontSizePercent)
   const setFontSizePercent = useUiSettings(s => s.setFontSizePercent)
@@ -335,6 +337,7 @@ export default function App() {
           onNewLogs={handleNewLogs}
           onOpenCactbot={() => setShowCactbotImport(true)}
           onOpenFflogs={() => setShowFflogsImport(true)}
+          onOpenAct={() => setShowActImport(true)}
           onOpenSettings={() => setShowSettings(true)}
           fileName={activeFileName}
           isDirty={isPr ? prIsDirty : isLogs ? logsIsDirty : isDirty}
@@ -408,6 +411,7 @@ export default function App() {
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showCactbotImport && <CactbotImportDialog onClose={() => setShowCactbotImport(false)} />}
       {showFflogsImport && <FflogsImportDialog onClose={() => setShowFflogsImport(false)} />}
+      {showActImport && <ActImportDialog onClose={() => setShowActImport(false)} />}
     </div>
     </ErrorBoundary>
   )

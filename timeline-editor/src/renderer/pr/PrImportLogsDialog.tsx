@@ -13,6 +13,9 @@ import {
 
 const STEPS = ['选择日志', '锚点对齐', '导入预览'] as const
 
+/** 下拉框中「留空」选项的哨兵值（事件 id 不会取到该值） */
+const SKIP_VALUE = '__skip__'
+
 const METHOD_BADGE: Record<string, { text: string; cls: string }> = {
   start: { text: '起点', cls: 'bg-gray-700 text-gray-300' },
   exact: { text: '精确', cls: 'bg-green-900/60 text-green-300' },
@@ -43,8 +46,9 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
   const [logsDoc, setLogsDoc] = useState<LogsTimelineDoc | null>(null)
   const [loadError, setLoadError] = useState('')
 
-  // ② 锚点对齐（人工钉选 anchorGuid → eventId）
+  // ② 锚点对齐（人工钉选 anchorGuid → eventId；留空集合强制该锚点不参与匹配）
   const [pins, setPins] = useState<ReadonlyMap<string, string>>(new Map())
+  const [skips, setSkips] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -111,8 +115,8 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
   const uses = useMemo(() => (logsDoc ? collectSkillUses(logsDoc) : []), [logsDoc])
 
   const matches = useMemo(
-    () => (logsDoc ? matchAnchorsToLog(anchors, events, pins) : []),
-    [logsDoc, anchors, events, pins]
+    () => (logsDoc ? matchAnchorsToLog(anchors, events, pins, skips) : []),
+    [logsDoc, anchors, events, pins, skips]
   )
 
   const placements = useMemo(
@@ -227,7 +231,7 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
           <div>
             {lowConfidence > 0 && (
               <div className="mb-3 px-3 py-2 rounded bg-yellow-900/30 text-yellow-300 text-xs">
-                {lowConfidence} 个锚点无法从日志精确匹配，已用插值/外推估算（标黄/红）。可在下方下拉框中人工改选对应事件。
+                {lowConfidence} 个锚点无法从日志精确匹配，已用插值/外推估算（标黄/红）。可在下方下拉框中人工改选对应事件；日志中没有对应事件时可选「留空」跳过匹配。
               </div>
             )}
             <table className="w-full text-sm">
@@ -245,6 +249,8 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
                   const badge = METHOD_BADGE[m.method]
                   const castStart = anchor ? anchorCastStart(anchor) : false
                   const candidates = anchor ? candidateEventsForAnchor(anchor, events) : []
+                  const pinned = pins.has(m.anchorGuid)
+                  const skipped = skips.has(m.anchorGuid)
                   return (
                     <tr key={m.anchorGuid} className="border-b border-gray-800">
                       <td className="py-1.5 pr-2 text-gray-200">
@@ -266,18 +272,41 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
                           <span className="text-gray-500">战斗开始</span>
                         ) : candidates.length > 0 ? (
                           <select
-                            value={m.eventId ?? ''}
+                            value={skipped ? SKIP_VALUE : (m.eventId ?? '')}
                             onChange={e => {
-                              setPins(prev => {
-                                const next = new Map(prev)
-                                if (e.target.value) next.set(m.anchorGuid, e.target.value)
-                                else next.delete(m.anchorGuid)
-                                return next
-                              })
+                              const v = e.target.value
+                              if (v === SKIP_VALUE) {
+                                setPins(prev => {
+                                  if (!prev.has(m.anchorGuid)) return prev
+                                  const next = new Map(prev)
+                                  next.delete(m.anchorGuid)
+                                  return next
+                                })
+                                setSkips(prev => new Set(prev).add(m.anchorGuid))
+                              } else {
+                                setSkips(prev => {
+                                  if (!prev.has(m.anchorGuid)) return prev
+                                  const next = new Set(prev)
+                                  next.delete(m.anchorGuid)
+                                  return next
+                                })
+                                setPins(prev => {
+                                  const next = new Map(prev)
+                                  if (v) next.set(m.anchorGuid, v)
+                                  else next.delete(m.anchorGuid)
+                                  return next
+                                })
+                              }
                             }}
                             className="field-input !w-full text-xs"
                           >
-                            {!m.eventId && <option value="">（未匹配 — 插值估算 {formatTimeMs(m.logMs)}）</option>}
+                            <option value={SKIP_VALUE}>
+                              {skipped ? `（留空 — 插值估算 ${formatTimeMs(m.logMs)}）` : '（留空 — 不匹配任何事件）'}
+                            </option>
+                            {(pinned || skipped) && <option value="">（自动匹配）</option>}
+                            {!pinned && !skipped && !m.eventId && (
+                              <option value="">（未匹配 — 插值估算 {formatTimeMs(m.logMs)}）</option>
+                            )}
                             {candidates.map(ev => (
                               <option key={ev.id} value={ev.id}>
                                 {formatTimeMs(alignedEventMs(ev, castStart))} {ev.skillName || ev.text}

@@ -13,6 +13,8 @@ export interface AppSettings {
   aeDirectory: string
   prDirectory: string
   logsDirectory: string
+  /** ACT 日志（FFXIVLogs）目录，用于 ACT 导入向导的默认文件列表 */
+  actLogsDirectory: string
   proxy: ProxySettings
   /** 界面字体缩放百分比，100 = 默认大小 */
   fontSizePercent: number

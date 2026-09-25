@@ -7,6 +7,10 @@ import type {
   FflogsCastEvent, FflogsFetchCastsRequest, FflogsFetchProgress,
   FflogsReportInfo, FflogsResult
 } from '../shared/fflogsTypes'
+import type {
+  ActLogEvent, ActLogFileInfo, ActParseRequest, ActProgress,
+  ActResult, ActScanRequest, ActScanResult
+} from '../shared/actTypes'
 import type { JobSkillDatabase } from '../shared/jobSkillTypes'
 import type { ActionNameDatabase } from '../shared/actionNameTypes'
 
@@ -103,6 +107,32 @@ const api = {
     const handler = (_event: Electron.IpcRendererEvent, p: FflogsFetchProgress) => callback(p)
     ipcRenderer.on('fflogs:progress', handler)
     return () => ipcRenderer.removeListener('fflogs:progress', handler)
+  },
+
+  // ACT 本地日志
+  listActLogFiles: (dir?: string): Promise<ActResult<ActLogFileInfo[]>> =>
+    ipcRenderer.invoke('act:listFiles', dir),
+  scanActLog: (req: ActScanRequest): Promise<ActResult<ActScanResult>> =>
+    ipcRenderer.invoke('act:scan', req),
+  parseActLog: (req: ActParseRequest): Promise<ActResult<ActLogEvent[]>> =>
+    ipcRenderer.invoke('act:parse', req),
+  cancelActLog: (requestId: string): Promise<void> =>
+    ipcRenderer.invoke('act:cancel', requestId),
+  onActProgress: (callback: (p: ActProgress) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, p: ActProgress) => callback(p)
+    ipcRenderer.on('act:progress', handler)
+    return () => ipcRenderer.removeListener('act:progress', handler)
+  },
+  getActLogsDirectory: (): Promise<string> =>
+    ipcRenderer.invoke('app:getActLogsDir'),
+  selectActLogsDirectory: (): Promise<{ cancelled: boolean; directory?: string }> =>
+    ipcRenderer.invoke('dialog:selectActLogsDirectory'),
+  openActLogFileDialog: (): Promise<DialogResult> =>
+    ipcRenderer.invoke('dialog:openActLogFile'),
+  onActLogsDirectoryChanged: (callback: (newDir: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, newDir: string) => callback(newDir)
+    ipcRenderer.on('actLogs:directoryChanged', handler)
+    return () => ipcRenderer.removeListener('actLogs:directoryChanged', handler)
   },
 
   // Job skill database

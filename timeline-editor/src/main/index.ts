@@ -3,6 +3,7 @@ import { existsSync } from 'fs'
 import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { registerAcrIpc } from './acrIpc'
+import { registerActLogIpc } from './actLogIpc'
 import {
   applyCurrentProxy,
   getAcrDir,
@@ -228,6 +229,7 @@ function registerAllIpc(): void {
   registerAcrIpc(getTriggerlinesDir, getAcrDir)
   registerCactbotIpc()
   registerFflogsIpc()
+  registerActLogIpc(() => mainWindow)
 }
 
 registerAllIpc()

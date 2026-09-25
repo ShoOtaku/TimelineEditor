@@ -28,6 +28,20 @@ const DEFAULT_LOGS_DIR = join(
   'LogsTimelines'
 )
 
+// ACT 日志目录默认候选：呆萌整合版默认安装路径 → ACT 官方默认（%APPDATA%），取第一个存在的
+function resolveDefaultActLogsDir(): string {
+  const candidates = [
+    join('C:\\', 'Tools', 'ACT.DieMoe', 'FFXIVLogs'),
+    join(app.getPath('appData'), 'Advanced Combat Tracker', 'FFXIVLogs')
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  return candidates[candidates.length - 1]
+}
+
+const DEFAULT_ACT_LOGS_DIR = resolveDefaultActLogsDir()
+
 const CONFIG_PATH = join(app.getPath('userData'), 'ae-config.json')
 
 const MIN_FONT_SIZE_PERCENT = 50
@@ -41,6 +55,7 @@ let settings: AppSettings = {
   aeDirectory: DEFAULT_AE_DIR,
   prDirectory: DEFAULT_PR_DIR,
   logsDirectory: DEFAULT_LOGS_DIR,
+  actLogsDirectory: DEFAULT_ACT_LOGS_DIR,
   proxy: { ...DEFAULT_PROXY_SETTINGS },
   fontSizePercent: 100
 }
@@ -57,6 +72,9 @@ export async function loadAppConfig(): Promise<void> {
     }
     if (typeof raw.logsDirectory === 'string' && raw.logsDirectory.trim()) {
       settings.logsDirectory = raw.logsDirectory
+    }
+    if (typeof raw.actLogsDirectory === 'string' && raw.actLogsDirectory.trim()) {
+      settings.actLogsDirectory = raw.actLogsDirectory
     }
     const proxy = validateProxySettings(raw.proxy)
     if (proxy.success) settings.proxy = proxy.settings
@@ -82,6 +100,7 @@ export function getAppSettings(): AppSettings {
     aeDirectory: settings.aeDirectory,
     prDirectory: settings.prDirectory,
     logsDirectory: settings.logsDirectory,
+    actLogsDirectory: settings.actLogsDirectory,
     proxy: { ...settings.proxy },
     fontSizePercent: settings.fontSizePercent
   }
@@ -90,6 +109,7 @@ export function getAppSettings(): AppSettings {
 export function getAeDirectory(): string { return settings.aeDirectory }
 export function getPrDirectory(): string { return settings.prDirectory }
 export function getLogsDirectory(): string { return settings.logsDirectory }
+export function getActLogsDirectory(): string { return settings.actLogsDirectory }
 export function getTriggerlinesDir(): string { return join(settings.aeDirectory, 'Triggerlines') }
 export function getAcrDir(): string { return join(settings.aeDirectory, 'ACR') }
 
@@ -105,6 +125,11 @@ export async function setPrDirectory(directory: string): Promise<void> {
 
 export async function setLogsDirectory(directory: string): Promise<void> {
   settings.logsDirectory = directory
+  await persistAppConfig()
+}
+
+export async function setActLogsDirectory(directory: string): Promise<void> {
+  settings.actLogsDirectory = directory
   await persistAppConfig()
 }
 
