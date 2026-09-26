@@ -35,6 +35,7 @@ timeline-editor/
 │       ├── main.tsx            # React 入口（DEV 下暴露 window.__prStore 供 CDP/E2E 脚本用）
 │       ├── App.tsx             # 主布局 — Sidebar | TreeView | PropertyPanel + ScriptPanel
 │       ├── env.d.ts            # window.electronAPI 类型声明
+│       ├── clipboard.ts        # 跨实例复制粘贴 — 系统剪贴板 JSON 负载读写 + 形状守卫
 │       ├── index.css           # TailwindCSS + 暗色主题 + 自定义 .field-input .field-input
 │       ├── store/
 │       │   ├── index.ts        # Zustand + Immer — AE 文档/undo/ACR 类型注册表
@@ -192,7 +193,7 @@ Node { Id, Name, Type: serial|parallel|condition|action|branch|delay, Enabled, R
 - **PR 目录**：默认 `%APPDATA%/XIVLauncherCN/pluginConfigs/PromeRotation/PureTimelines`，持久化在 ae-config.json 的 `prDirectory` 键
 - **起手**：`Meta.Opener` 是起手模板**名称**（留空=不覆盖，下拉候选由 ACR 插件运行时注册，本编辑器用文本输入）；`Meta.CustomOpener.Script` 是自定义起手 C# 脚本，与 `CustomOpenerDefinition.FromScript` 对齐：空白→null、序列化时省略。插件的「测试编译」依赖插件运行时，本编辑器不提供
 - **脚本面板**：AE/PR 共用一个底部 Monaco 面板，`scriptTarget`（'node'|'opener'）决定写入节点 `Script` 还是文档级起手（AE `OpenerScript` / PR `Meta.CustomOpener.Script`）；打开面板不标脏（`syncedRef` 跳过无变化写入）；`pushUndo(s, tag)` 相同 tag 的连续变更合并为一步撤销（逐键入的防抖应用依赖此机制）
-- **复制粘贴**：PR 内部剪贴板 `prStore.clipboard`（`{kind:'entry'|'node', data}` 深拷贝，跨文件保留）。Ctrl+C 复制选中行为组/节点，Ctrl+V 粘贴——行为组落到选中（或选中项所属的）锚点，`Offset` 用 `segmentDuration` 收敛进目标段窗口，锚点不可挂载（End/注释/技术/末位功能锚点）时拒绝；节点落入选中组合节点内（否则其后方同级），子树经 `reassignNodeIds` 重排 Id。行为组行 📋、锚点行「📋粘贴」、节点右键菜单（复制到剪贴板/粘贴为子节点/粘贴到后方）是等价入口
+- **复制粘贴**：PR 内部剪贴板 `prStore.clipboard`（`{kind:'entry'|'node', data}` 深拷贝，跨文件保留），AE 为 `store.clipboard`（整个 TreeNode，含条件/动作数组）。复制时写透到**系统剪贴板**（`clipboard.ts` 带标记 JSON 负载，经 `clipboard:writeText`/`clipboard:readText` IPC），窗口聚焦 / 打开右键菜单 / 粘贴时经 `resolveAeClipboard()` / `resolvePrClipboard()` 回读并同步进内存剪贴板——**支持跨应用实例粘贴**（系统剪贴板无有效负载时回退内存剪贴板）；三个粘贴动作因此是 async。Ctrl+C 复制选中行为组/节点，Ctrl+V 粘贴——行为组落到选中（或选中项所属的）锚点，`Offset` 用 `segmentDuration` 收敛进目标段窗口，锚点不可挂载（End/注释/技术/末位功能锚点）时拒绝；节点落入选中组合节点内（否则其后方同级），子树经 `reassignNodeIds` 重排 Id。行为组行 📋、锚点行「📋粘贴」、节点右键菜单（复制到剪贴板/粘贴为子节点/粘贴到后方）是等价入口
 - **职能检测（timelinerole）** 运行时判定 `TimelineRoleManager.CurrentRole`，只能由插件面板「当前职能」下拉或聊天 `/e MT` 设置（无自动检测），未设置时条件恒不成立；编辑器职能下拉因此不含 None（避免写出恒假条件）
 
 ## 技能名数据（data/actions.json）
@@ -260,7 +261,7 @@ interface AcrTypeDef {
 
 `loadFile(path)` → IPC `file:read` → `JSON.parse` → 写入 Zustand store。加载时清空 undo/redo。
 
-### IPC 通道（38 个）
+### IPC 通道（40 个）
 
 `file:read` `file:write` `file:exists` `file:stat` `file:listDir` |
 `dialog:openFile` `dialog:saveFile` `dialog:selectAeDirectory` |
@@ -269,6 +270,7 @@ interface AcrTypeDef {
 `app:getPrDir` `dialog:selectPrDirectory` `dialog:openPrFile` `dialog:savePrFile` |
 `app:getLogsDir` `dialog:selectLogsDirectory` `dialog:openLogsFile` `dialog:saveLogsFile` |
 `settings:get` `settings:setProxy` `settings:setFontSize` |
+`clipboard:writeText` `clipboard:readText`（系统剪贴板，跨实例复制粘贴）|
 `fflogs:fetchReport` `fflogs:fetchCasts` `fflogs:cancelCasts`（进度事件 `fflogs:progress`）|
 `app:getActLogsDir` `dialog:selectActLogsDirectory` `dialog:openActLogFile` |
 `act:listFiles` `act:scan` `act:parse` `act:cancel`（进度事件 `act:progress`）
@@ -298,7 +300,7 @@ interface AcrTypeDef {
 
 ### 界面设置与模式切换
 
-- **字体大小**：`AppSettings.fontSizePercent`（默认 100，钳制 50–200）持久化在 ae-config.json，经 `settings:setFontSize` IPC 保存；渲染进程存于 `store/uiSettingsStore.ts`。App 对工具栏/侧栏/中央视图/属性面板/状态栏施加 CSS `zoom`（面板拖拽分隔条按 zoom 换算回布局 px）；Monaco 不用 zoom（避免鼠标定位偏移），两个脚本面板用 `editor.updateOptions({ fontSize })` 跟随（基准 12px）。设置对话框中选择档位立即生效并保存
+- **字体大小**：`AppSettings.fontSizePercent`（默认 100，钳制 50–200）持久化在 ae-config.json，经 `settings:setFontSize` IPC 保存；渲染进程存于 `store/uiSettingsStore.ts`。App 对工具栏/侧栏/中央视图/属性面板/状态栏施加 CSS `zoom`（面板拖拽分隔条按 zoom 换算回布局 px）；Monaco 不用 zoom（避免鼠标定位偏移），两个脚本面板用 `editor.updateOptions({ fontSize })` 跟随（基准 12px）。**所有模态框（ModalShell/Dialog/UpdateDialog）与右键菜单（ContextMenu/PrNodeTree）一律 createPortal 到 document.body**——zoom 会放大 fixed 定位元素及其 left/top，挂在缩放容器内会导致对话框超出窗口、菜单偏离鼠标；portal 后按真实视口计算且不受缩放影响。设置对话框中选择档位立即生效并保存
 - **模式切换保留工作现场**：AE/PR/战斗日志三个模式的侧栏、中央视图、属性面板（含 AE 的 ACR 浏览器）全部保持挂载，切模式只是 `display:none` 切换——各模式文档本就在独立 store 中，挂载保留后滚动位置、树展开状态、筛选文本、Monaco 光标/undo 都原样恢复；切换模式时 `document.title` 同步为当前模式文件名
 
 ### 开发调试

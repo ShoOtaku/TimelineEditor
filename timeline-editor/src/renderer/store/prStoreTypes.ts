@@ -108,9 +108,9 @@ export interface PrStore {
   copyEntry: (guid: string) => void
   copyNode: (entryGuid: string, nodeId: number) => void
   /** Paste a copied entry onto another anchor (Offset clamped into the anchor's segment) */
-  pasteEntry: (anchorGuid: string) => void
+  pasteEntry: (anchorGuid: string) => Promise<void>
   /** Paste a copied node into an entry: inside a composite target (or root when null), else after it */
-  pasteNode: (entryGuid: string, targetNodeId: number | null, position?: 'inside' | 'after') => void
+  pasteNode: (entryGuid: string, targetNodeId: number | null, position?: 'inside' | 'after') => Promise<void>
 
   undo: () => void
   redo: () => void

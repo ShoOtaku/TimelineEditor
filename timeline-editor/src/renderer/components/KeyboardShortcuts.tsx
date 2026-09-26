@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useStore } from '../store'
-import { usePrStore } from '../store/prStore'
+import { usePrStore, resolvePrClipboard } from '../store/prStore'
 import { useLogsStore } from '../logs/logsStore'
 import { askConfirm, isDialogOpen } from '../store/dialogStore'
 import { countEntryNodes, isCompositeNode } from '../pr/prModel'
@@ -15,7 +15,6 @@ export function KeyboardShortcuts() {
   const duplicateNode = useStore(s => s.duplicateNode)
   const copyNode = useStore(s => s.copyNode)
   const pasteNode = useStore(s => s.pasteNode)
-  const clipboard = useStore(s => s.clipboard)
 
   const editorMode = usePrStore(s => s.editorMode)
   const prSelection = usePrStore(s => s.selection)
@@ -28,7 +27,6 @@ export function KeyboardShortcuts() {
   const prDuplicateAnchor = usePrStore(s => s.duplicateAnchor)
   const prDuplicateEntry = usePrStore(s => s.duplicateEntry)
   const prDuplicateEntryNode = usePrStore(s => s.duplicateEntryNode)
-  const prClipboard = usePrStore(s => s.clipboard)
   const prCopyEntry = usePrStore(s => s.copyEntry)
   const prCopyNode = usePrStore(s => s.copyNode)
   const prPasteEntry = usePrStore(s => s.pasteEntry)
@@ -206,30 +204,35 @@ export function KeyboardShortcuts() {
         return
       }
       if (isPr && ctrl && e.key === 'v') {
-        if (!prClipboard || !prDoc) return
+        if (!prDoc) return
         e.preventDefault()
-        if (prClipboard.kind === 'entry') {
-          // Paste onto the selected anchor, or onto the anchor of the selected entry/node
-          const anchorGuid = prSelection?.kind === 'anchor' ? prSelection.guid
-            : prSelection?.kind === 'entry'
-              ? prDoc.Entries.find(en => en.Guid === prSelection.guid)?.StartAnchorGuid
-              : prSelection?.kind === 'node'
-                ? prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)?.StartAnchorGuid
-                : null
-          if (anchorGuid) prPasteEntry(anchorGuid)
-        } else {
-          // Node: paste into the composite / after the selected node, or into the entry root
-          if (prSelection?.kind === 'node') {
-            const entry = prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)
-            let target: import('@shared/prTypes').PtlNode | null = null
-            const walk = (n: import('@shared/prTypes').PtlNode) => { if (n.Id === prSelection.nodeId) target = n; (n.Children ?? []).forEach(walk) }
-            if (entry) walk(entry.EntryGroup)
-            const inside = target && isCompositeNode(target)
-            prPasteNode(prSelection.entryGuid, prSelection.nodeId, inside ? 'inside' : 'after')
-          } else if (prSelection?.kind === 'entry') {
-            prPasteNode(prSelection.guid, null)
+        // 先解析系统剪贴板（跨实例粘贴），按负载类型决定粘贴行为组还是节点
+        void (async () => {
+          const clip = await resolvePrClipboard()
+          if (!clip) return
+          if (clip.kind === 'entry') {
+            // Paste onto the selected anchor, or onto the anchor of the selected entry/node
+            const anchorGuid = prSelection?.kind === 'anchor' ? prSelection.guid
+              : prSelection?.kind === 'entry'
+                ? prDoc.Entries.find(en => en.Guid === prSelection.guid)?.StartAnchorGuid
+                : prSelection?.kind === 'node'
+                  ? prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)?.StartAnchorGuid
+                  : null
+            if (anchorGuid) void prPasteEntry(anchorGuid)
+          } else {
+            // Node: paste into the composite / after the selected node, or into the entry root
+            if (prSelection?.kind === 'node') {
+              const entry = prDoc.Entries.find(en => en.Guid === prSelection.entryGuid)
+              let target: import('@shared/prTypes').PtlNode | null = null
+              const walk = (n: import('@shared/prTypes').PtlNode) => { if (n.Id === prSelection.nodeId) target = n; (n.Children ?? []).forEach(walk) }
+              if (entry) walk(entry.EntryGroup)
+              const inside = target && isCompositeNode(target)
+              void prPasteNode(prSelection.entryGuid, prSelection.nodeId, inside ? 'inside' : 'after')
+            } else if (prSelection?.kind === 'entry') {
+              void prPasteNode(prSelection.guid, null)
+            }
           }
-        }
+        })()
         return
       }
 
@@ -245,11 +248,10 @@ export function KeyboardShortcuts() {
       }
 
       // Ctrl+V: Paste after selected node, or at root (AE)
+      // 剪贴板内容可能来自其他实例（系统剪贴板），始终尝试异步解析
       if (ctrl && e.key === 'v') {
-        if (clipboard) {
-          e.preventDefault()
-          pasteNode(selectedNodeId)
-        }
+        e.preventDefault()
+        void pasteNode(selectedNodeId)
         return
       }
     }
@@ -257,10 +259,10 @@ export function KeyboardShortcuts() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [
-    selectedNodeId, undo, redo, deleteNode, getNodeById, toggleNodeEnabled, duplicateNode, copyNode, pasteNode, clipboard,
+    selectedNodeId, undo, redo, deleteNode, getNodeById, toggleNodeEnabled, duplicateNode, copyNode, pasteNode,
     editorMode, prSelection, prDoc, prUndo, prRedo,
     prDeleteAnchor, prDeleteEntry, prDeleteEntryNode, prDuplicateAnchor, prDuplicateEntry, prDuplicateEntryNode,
-    prClipboard, prCopyEntry, prCopyNode, prPasteEntry, prPasteNode,
+    prCopyEntry, prCopyNode, prPasteEntry, prPasteNode,
     logsSelection, logsDoc, logsUndo, logsRedo, logsDeleteEvent, logsDeleteGcdUse, logsDeleteSkillUse, logsRemoveColumn
   ])
 

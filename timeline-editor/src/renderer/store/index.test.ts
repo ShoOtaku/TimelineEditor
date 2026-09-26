@@ -75,10 +75,10 @@ beforeEach(() => {
 })
 
 describe('AE tree copy operations', () => {
-  it('assigns unique IDs to every pasted descendant so leaves remain editable', () => {
+  it('assigns unique IDs to every pasted descendant so leaves remain editable', async () => {
     const store = useStore.getState()
     store.copyNode(1)
-    useStore.getState().pasteNode(1)
+    await useStore.getState().pasteNode(1)
 
     const pasted = useStore.getState().doc!.TreeRoot.Childs[1]
     const ids = collectIds(pasted)

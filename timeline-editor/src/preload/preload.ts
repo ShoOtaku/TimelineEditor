@@ -64,6 +64,12 @@ const api = {
   getBackupDir: (filePath: string): Promise<string> =>
     ipcRenderer.invoke('app:getBackupDir', filePath),
 
+  // 系统剪贴板（跨实例复制粘贴）
+  clipboardWriteText: (text: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('clipboard:writeText', text),
+  clipboardReadText: (): Promise<string> =>
+    ipcRenderer.invoke('clipboard:readText'),
+
   // Spell data
   loadSpellData: (): Promise<{ success: boolean; data: Record<string, { n: string; c?: number; t: number; ct?: number; p?: number; r?: number }>; error?: string }> =>
     ipcRenderer.invoke('app:loadSpellData'),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { existsSync } from 'fs'
 import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises'
 import { join } from 'path'
@@ -217,6 +217,16 @@ function registerMiscIpc(): void {
   })
 }
 
+// 系统剪贴板读写 — 供渲染进程跨实例复制粘贴节点/行为组
+function registerClipboardIpc(): void {
+  ipcMain.handle('clipboard:writeText', (_event, text: string) => {
+    if (typeof text !== 'string') return { success: false }
+    clipboard.writeText(text)
+    return { success: true }
+  })
+  ipcMain.handle('clipboard:readText', () => clipboard.readText())
+}
+
 function registerAllIpc(): void {
   registerFileIpc()
   registerAeDirectoryIpc()
@@ -225,6 +235,7 @@ function registerAllIpc(): void {
   registerOpenSaveDialogs()
   registerUpdaterIpc()
   registerMiscIpc()
+  registerClipboardIpc()
   registerSettingsIpc()
   registerAcrIpc(getTriggerlinesDir, getAcrDir)
   registerCactbotIpc()

@@ -35,8 +35,8 @@ import { ScriptPanel } from './panels/ScriptPanel'
 import { AcrViewerPanel } from './panels/AcrViewerPanel'
 import { StatusBar } from './components/StatusBar'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
-import { useStore } from './store'
-import { usePrStore } from './store/prStore'
+import { useStore, resolveAeClipboard } from './store'
+import { usePrStore, resolvePrClipboard } from './store/prStore'
 import { useUiSettings } from './store/uiSettingsStore'
 import { askConfirm, askPrompt } from './store/dialogStore'
 import { DialogHost } from './components/DialogHost'
@@ -300,6 +300,15 @@ export default function App() {
   useEffect(() => {
     document.title = activeFileName ? `Timeline Editor - ${activeFileName}` : 'Timeline Editor'
   }, [activeFileName])
+
+  // 跨实例复制粘贴：窗口获得焦点时从系统剪贴板同步节点/行为组，
+  // 让在另一个实例里复制的内容在本实例的菜单/按钮中立即可粘贴
+  useEffect(() => {
+    const sync = () => { void resolveAeClipboard(); void resolvePrClipboard() }
+    window.addEventListener('focus', sync)
+    sync()
+    return () => window.removeEventListener('focus', sync)
+  }, [])
 
   // Listen for auto-check update available notification
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useStore } from '../store'
+import { createPortal } from 'react-dom'
+import { useStore, resolveAeClipboard } from '../store'
 import { isComposite } from '@shared/types'
 import { askConfirm } from '../store/dialogStore'
 
@@ -60,6 +61,9 @@ export function ContextMenu({ menu, hideMenu }: {
   const isRoot = menu.nodeId === null || menu.nodeId === 0
   // Leaf nodes (condition/action/script/delay/…) cannot hold children
   const canHoldChildren = !node || isComposite(node)
+
+  // 菜单每次打开时同步系统剪贴板（可能是在另一个实例里复制的节点），刷新「粘贴」可见性
+  useEffect(() => { void resolveAeClipboard() }, [])
 
   // Sibling insertion is the common case on a leaf; default that submenu open there
   const [submenu, setSubmenu] = useState<'child' | 'sibling' | null>(
@@ -124,7 +128,9 @@ export function ContextMenu({ menu, hideMenu }: {
     return () => window.removeEventListener('keydown', onKey)
   }, [hideMenu])
 
-  return (
+  // Portal 到 body：菜单位于 zoom 容器内时，fixed 定位的 left/top 会被缩放，
+  // 导致菜单偏离鼠标位置；脱离容器后按真实视口坐标渲染
+  return createPortal(
     <div
       className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl py-1 min-w-[210px] max-h-[80vh] overflow-y-auto"
       style={{ left: menu.x, top: menu.y }}
@@ -207,7 +213,8 @@ export function ContextMenu({ menu, hideMenu }: {
           )}
         </>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
 

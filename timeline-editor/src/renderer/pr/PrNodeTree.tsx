@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import type { PtlNode } from '@shared/prTypes'
 import {
   PR_NODE_TYPES, PR_NODE_TEMPLATE_LABELS, PR_NODE_TYPE_ICONS, PR_NODE_TYPE_COLORS,
@@ -7,7 +8,7 @@ import {
 import { conditionLabel, actionLabel } from '@shared/prSpecs'
 import { isCompositeNode } from './prModel'
 import type { DropPosition } from './prMutations'
-import { usePrStore } from '../store/prStore'
+import { usePrStore, resolvePrClipboard } from '../store/prStore'
 
 export function nodeSummary(node: PtlNode): string {
   switch (node.Type) {
@@ -108,6 +109,8 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
     e.preventDefault()
     e.stopPropagation()
     select({ kind: 'node', entryGuid, nodeId: node.Id })
+    // 同步系统剪贴板（可能是在另一个实例里复制的节点），刷新「粘贴」菜单项可见性
+    void resolvePrClipboard()
     setSubmenu(null)
     setMenu({
       x: e.clientX, y: e.clientY, nodeId: node.Id,
@@ -229,9 +232,9 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
     <>
       {renderNode(root, 0, [root], 0)}
 
-      {menuNode && (
+      {menuNode && createPortal(
         <div
-          className="fixed z-50 bg-gray-800 border border-gray-600 rounded shadow-xl py-1 text-[12px] min-w-40"
+          className="fixed z-50 bg-gray-800 border border-gray-600 rounded shadow-xl py-1 text-[12px] min-w-40 max-h-[80vh] overflow-y-auto"
           style={{ left: menuNode.x, top: menuNode.y }}
           onClick={e => e.stopPropagation()}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation() }}
@@ -315,7 +318,8 @@ export function PrNodeTree({ entryGuid, root }: { entryGuid: string; root: PtlNo
               <MenuItem label="删除节点" danger onClick={() => { deleteEntryNode(entryGuid, menuNode.nodeId); setMenu(null) }} />
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 const FOCUSABLE = [
@@ -51,7 +52,9 @@ export function ModalShell({
     }
   }, [onClose])
 
-  return (
+  // Portal 到 body：界面缩放（zoom）会放大 fixed 定位元素，挂在缩放容器内会让
+  // 对话框渲染得比窗口还高（底栏按钮被推出屏幕），脱离容器后 max-h 按真实视口计算
+  return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
       onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}
@@ -79,7 +82,8 @@ export function ModalShell({
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         {footer && <footer className="border-t border-gray-700 px-5 py-3">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { AcrTypeDef, TreeNode, TriggerLineDocument } from '@shared/types'
 import { askAlert } from './dialogStore'
+import { isAeNodeData, readClipboardPayload, writeClipboardPayload } from '../clipboard'
 import {
   addNodeToParent,
   createDefaultNode,
@@ -73,7 +74,7 @@ export interface EditorStore {
   toggleNodeEnabled: (nodeId: number) => void
   duplicateNode: (nodeId: number) => void
   copyNode: (nodeId: number) => void
-  pasteNode: (targetNodeId: number | null) => void
+  pasteNode: (targetNodeId: number | null) => Promise<void>
 
   // Undo/Redo
   undo: () => void
@@ -333,18 +334,21 @@ export const useStore = create<EditorStore>()(
       // Deep-clone into clipboard (outside Immer)
       const snapshot = JSON.parse(JSON.stringify(node)) as TreeNode
       set({ clipboard: snapshot })
+      // 写透到系统剪贴板，供其他应用实例粘贴；失败不影响内存剪贴板
+      writeClipboardPayload('ae-node', snapshot).catch(() => {})
     },
 
-    pasteNode: (targetNodeId) => {
-      const state = get()
-      if (!state.doc || !state.clipboard) return
+    pasteNode: async (targetNodeId) => {
+      // 系统剪贴板优先（跨实例粘贴），无有效负载时回退到内存剪贴板
+      const source = await resolveAeClipboard()
+      if (!source || !get().doc) return
 
       set((s) => {
-        if (!s.doc || !s.clipboard) return
+        if (!s.doc) return
         pushUndo(s)
 
         // Deep-clone clipboard and assign new IDs
-        const clone = JSON.parse(JSON.stringify(s.clipboard)) as TreeNode
+        const clone = JSON.parse(JSON.stringify(source)) as TreeNode
         const newId = getNextId(s.doc)
         reassignSubtreeIds(clone, newId)
 
@@ -424,3 +428,17 @@ export const useStore = create<EditorStore>()(
     }
   }))
 )
+
+/**
+ * 解析当前可用的 AE 剪贴板：系统剪贴板中有有效负载时优先采用（并同步进
+ * 内存剪贴板，让右键菜单的「粘贴」项可见），否则回退到内存剪贴板。
+ */
+export async function resolveAeClipboard(): Promise<TreeNode | null> {
+  const payload = await readClipboardPayload()
+  if (payload?.kind === 'ae-node' && isAeNodeData(payload.data)) {
+    const node = payload.data as TreeNode
+    useStore.setState({ clipboard: node })
+    return node
+  }
+  return useStore.getState().clipboard
+}

@@ -7,10 +7,11 @@ import {
   addAnchorToDoc, deleteAnchorFromDoc, duplicateAnchorInDoc,
   addEntryToDoc, duplicateEntryInDoc, pasteEntryToDoc, pasteNodeToEntry
 } from '../pr/prMutations'
-import type { PrStore, PrUndoEntry } from './prStoreTypes'
+import type { PrClipboard, PrStore, PrUndoEntry } from './prStoreTypes'
 import { pushUndo, getEntry } from './prStoreTypes'
 import { createNodeSlice } from './prNodeSlice'
 import { askAlert } from './dialogStore'
+import { isPrEntryData, isPrNodeData, readClipboardPayload, writeClipboardPayload } from '../clipboard'
 
 export type { PrSelection, EditorMode, PrStore } from './prStoreTypes'
 
@@ -289,7 +290,10 @@ export const usePrStore = create<PrStore>()(
       const entry = get().doc ? getEntry(get().doc!, guid) : undefined
       if (!entry) return
       // Deep-clone out of the Immer-frozen state
-      set({ clipboard: { kind: 'entry', data: JSON.parse(JSON.stringify(entry)) } })
+      const snapshot = JSON.parse(JSON.stringify(entry)) as PtlEntry
+      set({ clipboard: { kind: 'entry', data: snapshot } })
+      // 写透到系统剪贴板，供其他应用实例粘贴；失败不影响内存剪贴板
+      writeClipboardPayload('pr-entry', snapshot).catch(() => {})
     },
 
     copyNode: (entryGuid, nodeId) => {
@@ -300,14 +304,20 @@ export const usePrStore = create<PrStore>()(
       const walk = (n: PtlNode) => { if (n.Id === nodeId) target = n; (n.Children ?? []).forEach(walk) }
       walk(entry.EntryGroup)
       if (!target) return
-      set({ clipboard: { kind: 'node', data: JSON.parse(JSON.stringify(target)) } })
+      const snapshot = JSON.parse(JSON.stringify(target)) as PtlNode
+      set({ clipboard: { kind: 'node', data: snapshot } })
+      writeClipboardPayload('pr-node', snapshot).catch(() => {})
     },
 
-    pasteEntry: (anchorGuid) => {
+    pasteEntry: async (anchorGuid) => {
+      // 系统剪贴板优先（跨实例粘贴），无有效负载时回退到内存剪贴板
+      const clip = await resolvePrClipboard()
+      if (clip?.kind !== 'entry') return
+      const data = clip.data
       set((s) => {
-        if (!s.doc || s.clipboard?.kind !== 'entry') return
+        if (!s.doc) return
         pushUndo(s)
-        const clone = pasteEntryToDoc(s.doc, anchorGuid, s.clipboard.data as PtlEntry)
+        const clone = pasteEntryToDoc(s.doc, anchorGuid, data as PtlEntry)
         if (!clone) { s.undoStack.pop(); return }
         s.selection = { kind: 'entry', guid: clone.Guid }
         s.expandedEntries[clone.Guid] = true
@@ -315,13 +325,16 @@ export const usePrStore = create<PrStore>()(
       })
     },
 
-    pasteNode: (entryGuid, targetNodeId, position = 'after') => {
+    pasteNode: async (entryGuid, targetNodeId, position = 'after') => {
+      const clip = await resolvePrClipboard()
+      if (clip?.kind !== 'node') return
+      const data = clip.data
       set((s) => {
-        if (!s.doc || s.clipboard?.kind !== 'node') return
+        if (!s.doc) return
         const entry = getEntry(s.doc, entryGuid)
         if (!entry) return
         pushUndo(s)
-        const clone = pasteNodeToEntry(entry, s.clipboard.data as PtlNode, targetNodeId, position)
+        const clone = pasteNodeToEntry(entry, data as PtlNode, targetNodeId, position)
         if (!clone) { s.undoStack.pop(); return }
         s.selection = { kind: 'node', entryGuid, nodeId: clone.Id }
         s.isDirty = true
@@ -351,3 +364,22 @@ export const usePrStore = create<PrStore>()(
     }
   }))
 )
+
+/**
+ * 解析当前可用的 PR 剪贴板：系统剪贴板中有有效负载时优先采用（并同步进
+ * 内存剪贴板，让「📋粘贴」按钮/右键菜单项可见），否则回退到内存剪贴板。
+ */
+export async function resolvePrClipboard(): Promise<PrClipboard | null> {
+  const payload = await readClipboardPayload()
+  if (payload?.kind === 'pr-entry' && isPrEntryData(payload.data)) {
+    const clip: PrClipboard = { kind: 'entry', data: payload.data as PtlEntry }
+    usePrStore.setState({ clipboard: clip })
+    return clip
+  }
+  if (payload?.kind === 'pr-node' && isPrNodeData(payload.data)) {
+    const clip: PrClipboard = { kind: 'node', data: payload.data as PtlNode }
+    usePrStore.setState({ clipboard: clip })
+    return clip
+  }
+  return usePrStore.getState().clipboard
+}

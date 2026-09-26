@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface BaseProps {
   title: string
@@ -89,21 +90,23 @@ function Shell({ title, children, onCancel, closeOnOverlay = true }: {
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
 
-  return (
+  // Portal 到 body：避免被界面缩放（zoom）放大后超出窗口；同时限制高度，超长消息内部滚动
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center"
+      className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-6"
       onClick={closeOnOverlay ? onCancel : undefined}
     >
       <div
-        className="w-[420px] max-w-[90vw] bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden"
+        className="w-[420px] max-w-[90vw] max-h-[calc(100vh-48px)] flex flex-col bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-2.5 border-b border-gray-700 text-sm font-semibold text-gray-100">
+        <div className="px-4 py-2.5 border-b border-gray-700 text-sm font-semibold text-gray-100 flex-shrink-0">
           {title}
         </div>
-        <div className="p-4 space-y-3">{children}</div>
+        <div className="p-4 space-y-3 min-h-0 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

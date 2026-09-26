@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 type UpdatePhase =
   | 'checking'
@@ -109,11 +110,12 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
 
   const width = phase === 'available' ? 420 : 380
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  // Portal 到 body：避免被界面缩放（zoom）放大后超出窗口；面板限高并允许内部滚动
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
       <div
         style={{ width }}
-        className="bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden transition-all"
+        className="max-w-full max-h-[calc(100vh-48px)] overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-2xl transition-all"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
@@ -257,6 +259,7 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
