@@ -16,7 +16,7 @@ Output (compact, keyed by action id):
 
   t (spell_type): 0=魔法 1=能力 2=战技 3=其他
   p: 1 for player actions (IsPlayerAction && !IsPvP && ClassJob >= 0)
-  r: EffectRange（sbyte，近战为 -1）。PR 日志导入用它复刻游戏内编辑器的目标 Auto：
+  r: EffectRange（sbyte，近战为 -1）。PR 技能导入用它复刻游戏内编辑器的目标 Auto：
      r==0 → Self，其余 → Target。只有游戏本体路径导出该字段（MCP/CSV 兜底路径没有
      可靠的列映射，导出的记录不带 r，编辑器按未知回退为 Self）。
 

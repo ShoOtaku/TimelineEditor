@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePrStore } from '../store/prStore'
 import { askConfirm } from '../store/dialogStore'
+import { useDirWatch } from '../components/useDirWatch'
 
 interface FileEntry {
   name: string
@@ -40,6 +41,8 @@ export function PrSidebar() {
       setCurrentDir(dir)
     }
   }, [])
+
+  useDirWatch(currentDir, loadDirectory)
 
   useEffect(() => {
     (async () => {

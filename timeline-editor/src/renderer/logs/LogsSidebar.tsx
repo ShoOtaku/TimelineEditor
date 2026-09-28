@@ -10,6 +10,7 @@ import { useJobSkillDb } from './skillDb'
 import { findActionIdByName, loadActionNames } from './actionNames'
 import { SkillIconImg } from './logsIcon'
 import { askConfirm } from '../store/dialogStore'
+import { useDirWatch } from '../components/useDirWatch'
 
 interface LogFileEntry {
   name: string
@@ -34,6 +35,8 @@ function FilesPane() {
       setFiles([])
     }
   }, [])
+
+  useDirWatch(dir, refresh)
 
   useEffect(() => {
     // 主进程 IPC 并行开发中，方法可能尚不存在

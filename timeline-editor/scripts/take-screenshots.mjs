@@ -90,8 +90,8 @@ await clickText(DEMO_FILES.pr)
 await waitFor(`document.body.textContent.includes('校验通过') || document.body.textContent.includes('个问题')`, 8000, 'PR 加载')
 await shot('mode-pr')
 
-// ③ PR 日志导入向导（锚点映射页）
-await clickText('日志导入')
+// ③ PR 技能导入向导（锚点映射页）
+await clickText('技能导入')
 await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('.json')`, 8000, '对话框文件列表')
 await clickText(DEMO_FILES.logs, '[role="dialog"]')
 await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('BOSS 事件')`, 8000, '日志文档解析')

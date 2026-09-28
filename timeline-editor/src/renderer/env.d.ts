@@ -43,6 +43,9 @@ interface ElectronAPI {
   fileExists(filePath: string): Promise<boolean>
   fileStat(filePath: string): Promise<{ success: boolean; size?: number; mtime?: number; isDirectory?: boolean; error?: string }>
   listDir(dirPath: string): Promise<ElectronDirListResult>
+  watchDir(dirPath: string): Promise<{ success: boolean; error?: string }>
+  unwatchDir(dirPath: string): Promise<{ success: boolean }>
+  onDirChanged(callback: (dir: string) => void): () => void
   openFileDialog(): Promise<ElectronDialogResult>
   saveFileDialog(defaultName?: string): Promise<ElectronDialogResult>
   getDefaultDir(): Promise<string>

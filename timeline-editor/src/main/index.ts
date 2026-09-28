@@ -18,6 +18,7 @@ import {
   setPrDirectory
 } from './appConfig'
 import { registerCactbotIpc } from './cactbotIpc'
+import { registerDirWatchIpc } from './dirWatchIpc'
 import { registerFflogsIpc } from './fflogsIpc'
 import { installUpdate, cleanupLeftoverFiles } from './installer'
 import { checkForUpdates, downloadUpdate, getVersion } from './updater'
@@ -241,6 +242,7 @@ function registerAllIpc(): void {
   registerCactbotIpc()
   registerFflogsIpc()
   registerActLogIpc(() => mainWindow)
+  registerDirWatchIpc()
 }
 
 registerAllIpc()

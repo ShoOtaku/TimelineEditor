@@ -3,7 +3,7 @@
 FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循环切换）：
 
 1. **AE 时间轴**（AEAssist Triggerline）：读取/编辑 `Triggerlines` 目录下的 `.json` / `.txt`，树形展开视图、节点属性编辑、条件和动作类型化编辑器、C# 脚本 Monaco 编辑。自动发现 ACR 插件 DLL 中的条件/动作类型。未选中节点时右侧面板编辑时间轴元数据（`panels/DocMetaPanel.tsx`：Name/Author/TargetJob/TerritoryTypeId/TerritoryWeatherId/TargetAcrAuthor/Note/ExposedVars/ExposedVarDesc/LogsAddress/GUID/OpenerScript 入口）。
-2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 日志导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target 按技能表 `r`=EffectRange 复刻游戏内编辑器 Auto：0=Self、其余含近战 -1=Target，查不到回退 Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场战斗，**双来源**：ACT 本地日志（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep，`sim/simEvents.ts` 组装）或 FFLogs 报告（复用 fflogs:fetchReport/fetchCasts 与 FflogsImportDialog 的 ReportStep/FightStep，只下载 hostility=1 敌方施法，`sim/simFflogs.ts` 组装——casts 无 targetID，战斗边界直接用 FFLogs 的 fight.start/end_time，宠物按 enemies type='Pet' 过滤，同键 1s 去重防读条刷新重复消费 PendingSync）；事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）。ACT 路径开怪点判定=首个非宠物敌方来源或玩家指向敌方的战斗事件（`ActLogEvent.targetId` 参与），只保留非宠物敌方来源且默认全选。模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
+2. **PR 时间轴**（PromeRotation PureTimeline）：读取/编辑 `pluginConfigs/PromeRotation/PureTimelines` 目录下的 `.json`。按时间排序的锚点列表 + 锚点挂载行为组 + 可展开节点树，右侧属性面板编辑 Meta/变量（Variables）/锚点同步规则/行为组/节点/条件/动作。「📥 技能导入」（`pr/PrImportLogsDialog.tsx` + `pr/logsAlign.ts` 纯函数）：把战斗日志文档的玩家技能按锚点 Sync 规则（CastStart/ActionEffect ActionId/Regex）在日志 BOSS 事件中单调匹配分段对齐（窗口 ±30s 内取离期望时刻最近者，未匹配锚点插值/外推），段内缩放校正后按 `(锚点, Offset)` 落位，每个技能生成一个 `enqueueskill` 行为组（Gcd/OffGcd，Target 按技能表 `r`=EffectRange 复刻游戏内编辑器 Auto：0=Self、其余含近战 -1=Target，查不到回退 Self），三步向导（选日志→锚点映射可人工钉选改选或「留空」强制插值→落位预览），`importEntries` 整批一个撤销步。「▶ 模拟测试」（`pr/PrSimDialog.tsx` + `pr/sim/`）：三步向导导入某场战斗，**双来源**：ACT 本地日志（复用 act:scan/parse IPC 与 ActImportDialog 的 FileStep/EncounterStep，`sim/simEvents.ts` 组装）或 FFLogs 报告（复用 fflogs:fetchReport/fetchCasts 与 FflogsImportDialog 的 ReportStep/FightStep，只下载 hostility=1 敌方施法，`sim/simFflogs.ts` 组装——casts 无 targetID，战斗边界直接用 FFLogs 的 fight.start/end_time，宠物按 enemies type='Pet' 过滤，同键 1s 去重防读条刷新重复消费 PendingSync）；事件流写入 `sim/simStore`（瞬态会话，非文档不产生撤销步）。ACT 路径开怪点判定=首个非宠物敌方来源或玩家指向敌方的战斗事件（`ActLogEvent.targetId` 参与，已导出为 `findActPullTs` 供日志生成复用），只保留非宠物敌方来源且默认全选。「📥 日志生成时间轴」（`pr/PrBossImportDialog.tsx` + `pr/logMerge.ts` 纯函数）：适合无 cactbot 收录的副本——从 ACT/FFLogs 提取 BOSS 施法生成锚点骨架（不生成行为组），三步向导（添加战斗→事件来源→合并预览）；**多场战斗可加入清单对比融合**：同一次施法按合并窗口（默认 ±2.5s，限宽防链式合并、每簇每场至多一个事件）跨场对齐为一个锚点，时间取中位数，跨场 id 不同（同一技能多个 ID）合并为 `Regex: ^(?:id1|id2)$` 同步并以 ⚠ 标记+备注提示；读条簇与判定簇配对后默认各自生成锚点（`xxx 开始读条` CastStart + `xxx 判定` ActionEffect，可关闭判定锚点）；合并预览表（时间/技能/ID/类型/出现 n-m 场）即对比视图。提示用户「直接导入需模拟测试验证、部分技能可能有多个 ID」的位置：向导 description、预览步警告条（`LOG_IMPORT_TEST_WARNING`）、Meta.Remark、多 ID 锚点备注、导入完成 askAlert；`CactbotImportDialog` 空结果态也有「从日志生成」引导按钮。模拟结果不进对话框——`PrTimelineView` 用 `useMemo` 从 (当前文档, 事件流) 实时计算 `sim/simEngine.ts` 并内嵌展示：锚点/行为组行内徽章（命中+delta/过期/未等到/永不触发、激活时刻/未到达/段跳过/越界）+ 顶部摘要条（可展开与插件 SyncLog 同格式的模拟日志）+ ✕清除；**编辑/增删锚点后自动用同一份日志重新模拟**（`useDeferredValue` 防输入抖动）。`sim/simEngine.ts` 纯函数移植插件运行时语义（SyncMatcher 窗口/参数匹配/一事件一匹配/ForceJump、SegmentTracker 段内激活一次性不补触发、TimelineClock 命中硬拉 JumpTargetTime、Loaded→Running→Stopped 状态机）；已知偏差：InCombat≈开怪点、窗口过期连续化为 WindowEnd+0.5s、节点树内部执行不模拟。
 3. **战斗日志**（`renderer/logs/`，参考 ccinos/act_dps_show v3 重新设计 UI）：FFLogs v1 报告解析导入（主进程代理 `fflogsIpc.ts`，向导式四步：报告→战斗→下载→映射）、ACT 本地日志导入（`actLogIpc.ts` 流式扫描 `Network_*.log`：按活动间隔分段战斗 → 时间窗提取 20/21/22 行 → 复用同一映射管线，向导四步：文件→战斗→解析→映射）、垂直 SVG 时间轴（BOSS 事件 = 图标+读条矩形，重合读条按区间打包分配多轨道；GCD 轨道；能力技每列一个技能，CD 灰条从使用点向下延伸、持续绿条叠加）、技能列管理（21 职业技能库 `data/job-skills.json`，列显示名/匹配名/CD/图标均可覆盖）、文档存取于 `LogsTimelines` 目录（`logsDirectory` 设置）。
 
 ## 项目结构
@@ -59,6 +59,9 @@ timeline-editor/
 │       │   ├── PrActionEditor.tsx    # 动作编辑（规格驱动 + 原始字段回退）
 │       │   ├── PrScriptPanel.tsx    # Monaco C# 编辑器（scriptTarget: csharprunningaction 节点 Script / Meta.CustomOpener.Script，500ms 防抖自动应用）
 │       │   ├── PrSimDialog.tsx   # ▶ 模拟测试导入向导（ACT/FFLogs 双来源，复用两导入向导的步骤组件）
+│       │   ├── PrBossImportDialog.tsx # 📥 日志生成时间轴向导（三步：添加战斗→事件来源→合并预览）
+│       │   ├── logMerge.ts       # 日志生成内核（纯函数）：ACT/FFLogs → BossLogFight 归一化、多场对齐聚类（多 ID 合并）、PtlDocument 生成
+│       │   ├── logMerge.test.ts  # logMerge 单测
 │       │   ├── sim/              # 战斗模拟内核（纯函数）
 │       │   │   ├── simEngine.ts  # 插件运行时语义移植（SyncMatcher/SegmentTracker/TimelineClock），含 summarizeSim
 │       │   │   ├── simEvents.ts  # ACT ActLogEvent[] → SimInputEvent[]（仅非宠物敌方来源、默认全选；开怪点判定）
@@ -198,7 +201,7 @@ Node { Id, Name, Type: serial|parallel|condition|action|branch|delay, Enabled, R
 
 ## 技能名数据（data/actions.json）
 
-全量 Action 表（45000+ 条，含 Boss/NPC 技能），锚点同步与技能字段都靠它显示中文名；`r`（EffectRange，近战=-1）供 PR 日志导入复刻游戏内编辑器的目标 Auto（0=Self、其余=Target）。
+全量 Action 表（45000+ 条，含 Boss/NPC 技能），锚点同步与技能字段都靠它显示中文名；`r`（EffectRange，近战=-1）供 PR 技能导入复刻游戏内编辑器的目标 Auto（0=Self、其余=Target）。
 
 ```bash
 python -X utf8 scripts/export_all_actions.py            # 默认读游戏本体，最权威
@@ -297,6 +300,8 @@ interface AcrTypeDef {
 ### Preload 事件监听
 
 `onAeDirectoryChanged(cb)`、`onPrDirectoryChanged(cb)` 和 `onAcrTypesChanged(cb)` 通过 `ipcRenderer.on` + 返回 unsubscribe 函数实现。
+
+**文件列表自动刷新**：`main/dirWatchIpc.ts` 提供 `dir:watch`/`dir:unwatch`/`dir:changed`（fs.watch，去抖 250ms，按 webContents+目录隔离，窗口销毁自动清理；目录不存在或出错仅本次不监视）。三个侧栏（AE `Sidebar.tsx`、PR `PrSidebar.tsx`、战斗日志 `LogsSidebar.tsx` FilesPane）经共享 hook `components/useDirWatch.ts` 监视当前显示的目录，目录内容变化（新建保存/删除/重命名，含外部资源管理器改动）即自动重列；侧栏常驻挂载，切模式回来列表也是最新的。手动 ⟳ 刷新按钮保留作兜底。
 
 ### 界面设置与模式切换
 

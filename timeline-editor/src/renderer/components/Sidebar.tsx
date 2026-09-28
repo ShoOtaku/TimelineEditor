@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { askConfirm } from '../store/dialogStore'
+import { useDirWatch } from './useDirWatch'
 
 interface FileEntry {
   name: string
@@ -37,6 +38,8 @@ export function Sidebar() {
       setCurrentDir(dir)
     }
   }, [])
+
+  useDirWatch(currentDir, loadDirectory)
 
   // Initial load
   useEffect(() => {

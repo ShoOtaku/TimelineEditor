@@ -1,5 +1,5 @@
 import {
-  Activity, Clock3, Code2, Download, FileClock, FolderOpen, Import, Plus, Redo2, RefreshCw,
+  Activity, Clock3, Code2, Download, FileClock, FileStack, FolderOpen, Import, Plus, Redo2, RefreshCw,
   Save, SaveAll, ScanSearch, Settings, Undo2, Workflow
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -21,6 +21,7 @@ interface ToolbarProps {
   onNewPr: () => void
   onNewLogs: () => void
   onOpenCactbot: () => void
+  onOpenBossImport: () => void
   onOpenFflogs: () => void
   onOpenAct: () => void
   onOpenSettings: () => void
@@ -102,12 +103,13 @@ function DocumentCommands({ mode, props }: { mode: EditorMode; props: ToolbarPro
   return <>
     {mode === 'pr' && <>
       <ToolbarCommand icon={Plus} label="新建" title="新建 PR 时间轴" onClick={props.onNewPr} />
-      <ToolbarCommand icon={Import} label="Cactbot" title="导入 cactbot 官方时间轴" onClick={props.onOpenCactbot} />
+      <ToolbarCommand icon={Import} label="Cactbot" title="导入 cactbot 官方时间轴（OverlayPlugin 官方仓库收录的副本）" onClick={props.onOpenCactbot} />
+      <ToolbarCommand icon={FileStack} label="日志生成" title="从 ACT/FFLogs 原始日志提取 BOSS 施法，生成锚点骨架搭建时间轴（支持多场战斗对比融合，适合无 cactbot 收录的副本）" onClick={props.onOpenBossImport} />
     </>}
     {mode === 'logs' && <>
       <ToolbarCommand icon={Plus} label="新建" title="新建战斗日志时间轴" onClick={props.onNewLogs} />
-      <ToolbarCommand icon={Download} label="FFLogs" title="从 FFLogs 导入战斗记录" onClick={props.onOpenFflogs} />
-      <ToolbarCommand icon={FileClock} label="ACT" title="从 ACT 本地日志导入战斗记录" onClick={props.onOpenAct} />
+      <ToolbarCommand icon={Download} label="FFLogs" title="粘贴 FFLogs 报告链接，把一场真实战斗的记录（BOSS 事件 + 玩家实际技能使用）导入当前文档" onClick={props.onOpenFflogs} />
+      <ToolbarCommand icon={FileClock} label="ACT" title="从本机 ACT 日志文件（Network_*.log）挑一场战斗，把实际战斗记录导入当前文档" onClick={props.onOpenAct} />
     </>}
     <ToolbarIcon icon={FolderOpen} label="打开" title="打开（Ctrl+O）" onClick={props.onOpen} />
     <ToolbarIcon icon={Save} label="保存" title="保存（Ctrl+S）" onClick={props.onSave} />

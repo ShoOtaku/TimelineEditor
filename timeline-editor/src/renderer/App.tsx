@@ -49,6 +49,7 @@ import { LogsTimelineView } from './logs/LogsTimelineView'
 import { LogsPropertyPanel } from './logs/LogsPropertyPanel'
 import { FflogsImportDialog } from './logs/FflogsImportDialog'
 import { ActImportDialog } from './logs/ActImportDialog'
+import { PrBossImportDialog } from './pr/PrBossImportDialog'
 import { useLogsStore } from './logs/logsStore'
 
 export default function App() {
@@ -81,6 +82,7 @@ export default function App() {
   const [showUpdate, setShowUpdate] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showCactbotImport, setShowCactbotImport] = useState(false)
+  const [showBossImport, setShowBossImport] = useState(false)
   const [showFflogsImport, setShowFflogsImport] = useState(false)
   const [showActImport, setShowActImport] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
@@ -345,6 +347,7 @@ export default function App() {
           onNewPr={handleNewPr}
           onNewLogs={handleNewLogs}
           onOpenCactbot={() => setShowCactbotImport(true)}
+          onOpenBossImport={() => setShowBossImport(true)}
           onOpenFflogs={() => setShowFflogsImport(true)}
           onOpenAct={() => setShowActImport(true)}
           onOpenSettings={() => setShowSettings(true)}
@@ -418,7 +421,10 @@ export default function App() {
       <DialogHost />
       {showUpdate && <UpdateDialog onClose={() => { setShowUpdate(false); setUpdateAvailable(false) }} />}
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
-      {showCactbotImport && <CactbotImportDialog onClose={() => setShowCactbotImport(false)} />}
+      {showCactbotImport && <CactbotImportDialog
+        onClose={() => setShowCactbotImport(false)}
+        onOpenLogImport={() => { setShowCactbotImport(false); setShowBossImport(true) }} />}
+      {showBossImport && <PrBossImportDialog onClose={() => setShowBossImport(false)} />}
       {showFflogsImport && <FflogsImportDialog onClose={() => setShowFflogsImport(false)} />}
       {showActImport && <ActImportDialog onClose={() => setShowActImport(false)} />}
     </div>

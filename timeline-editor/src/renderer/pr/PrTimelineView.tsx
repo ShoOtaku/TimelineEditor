@@ -126,15 +126,16 @@ export function PrTimelineView() {
         <button
           onClick={() => addAnchor()}
           className="px-2.5 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+          title="在时间轴末尾添加一个同步锚点（BOSS 读条 / 判定 / 时间等触发方式）"
         >
           ＋ 锚点
         </button>
         <button
           onClick={() => setShowImportLogs(true)}
           className="px-2.5 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
-          title="从战斗日志文档导入玩家技能，按锚点同步规则分段对齐生成行为组"
+          title="从「战斗日志」模式保存的日志文档导入玩家技能：按锚点同步规则分段对齐，批量生成「加入技能队列」行为组"
         >
-          📥 日志导入
+          📥 技能导入
         </button>
         <button
           onClick={() => setShowSim(true)}

@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import {
-  AlertTriangle, CheckCircle2, Download, FileText, Languages, LoaderCircle,
+  AlertTriangle, CheckCircle2, Download, FileStack, FileText, Languages, LoaderCircle,
   RefreshCw, Search
 } from 'lucide-react'
 import type { CactbotCatalogFile } from '@shared/cactbotTypes'
@@ -11,9 +11,11 @@ import { ModalShell } from './ModalShell'
 
 interface CactbotImportDialogProps {
   onClose: () => void
+  /** 空结果时引导用户改用「从日志生成时间轴」 */
+  onOpenLogImport?: () => void
 }
 
-export function CactbotImportDialog({ onClose }: CactbotImportDialogProps) {
+export function CactbotImportDialog({ onClose, onOpenLogImport }: CactbotImportDialogProps) {
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const [version, setVersion] = useState('all')
@@ -32,7 +34,7 @@ export function CactbotImportDialog({ onClose }: CactbotImportDialogProps) {
   return (
     <ModalShell
       title="导入 cactbot 时间轴"
-      description="OverlayPlugin/cactbot 官方仓库"
+      description="OverlayPlugin/cactbot 官方仓库；副本无收录时可改用「日志生成」从 ACT/FFLogs 日志导入"
       onClose={onClose}
       widthClass="max-w-6xl"
       footer={
@@ -51,6 +53,7 @@ export function CactbotImportDialog({ onClose }: CactbotImportDialogProps) {
         loading={catalog.loading} loadError={catalog.loadError} truncated={catalog.truncated}
         loadCatalog={catalog.loadCatalog} importingPath={importer.importingPath}
         importStatus={importer.importStatus} importFile={importer.importFile}
+        onOpenLogImport={onOpenLogImport}
       />
     </ModalShell>
   )
@@ -67,6 +70,7 @@ interface DialogLayoutProps {
   loadCatalog: (refresh: boolean) => Promise<void>
   importingPath: string | null; importStatus: CactbotImportStatus
   importFile: (file: CactbotCatalogFile) => Promise<void>
+  onOpenLogImport?: () => void
 }
 
 function CactbotDialogLayout(props: DialogLayoutProps) {
@@ -146,7 +150,7 @@ function CatalogBody(props: DialogLayoutProps) {
   return <div className="min-h-0 flex-1 overflow-auto" aria-live="polite">
     {props.loading ? <CatalogSkeleton /> : props.loadError ? (
       <ErrorState message={props.loadError} onRetry={() => props.loadCatalog(true)} />
-    ) : props.visibleFiles.length === 0 ? <EmptyState /> : <div className="divide-y divide-gray-800">
+    ) : props.visibleFiles.length === 0 ? <EmptyState onOpenLogImport={props.onOpenLogImport} /> : <div className="divide-y divide-gray-800">
       {props.visibleFiles.map(file => <FileRow key={file.path} file={file}
         busy={props.importingPath === file.path} disabled={props.importingPath !== null}
         onImport={() => props.importFile(file)} />)}
@@ -232,10 +236,16 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   </div>
 }
 
-function EmptyState() {
+function EmptyState({ onOpenLogImport }: { onOpenLogImport?: () => void }) {
   return <div className="flex h-full min-h-56 flex-col items-center justify-center gap-2 text-gray-500">
     <Search size={24} />
     <p className="text-xs">没有匹配的时间轴</p>
+    {onOpenLogImport && (
+      <button type="button" onClick={onOpenLogImport}
+        className="command-button mt-1 !text-amber-300 !border-amber-900/60 hover:!bg-amber-950/40">
+        <FileStack size={14} />该副本无 cactbot 收录？从 ACT/FFLogs 日志生成
+      </button>
+    )}
   </div>
 }
 

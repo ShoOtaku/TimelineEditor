@@ -55,6 +55,17 @@ const api = {
     ipcRenderer.invoke('file:stat', filePath),
   listDir: (dirPath: string): Promise<DirListResult> =>
     ipcRenderer.invoke('file:listDir', dirPath),
+
+  // 目录监视（文件列表自动刷新）
+  watchDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('dir:watch', dirPath),
+  unwatchDir: (dirPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('dir:unwatch', dirPath),
+  onDirChanged: (callback: (dir: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, dir: string) => callback(dir)
+    ipcRenderer.on('dir:changed', handler)
+    return () => ipcRenderer.removeListener('dir:changed', handler)
+  },
   openFileDialog: (): Promise<DialogResult> =>
     ipcRenderer.invoke('dialog:openFile'),
   saveFileDialog: (defaultName?: string): Promise<DialogResult> =>

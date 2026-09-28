@@ -40,6 +40,27 @@ export function collectPetIds(actors: ActActorInfo[]): Set<number> {
 }
 
 /**
+ * 开怪时刻 = 首个 非宠物敌方来源 或 玩家指向敌方 的战斗事件。
+ * ACT 分段从第一个战斗事件起算，其中可能混有开怪前的玩家行动（道具/疾跑/召唤物治疗等），
+ * 而插件的 InCombat 是玩家进战边沿 ≈ 首个打到敌方的技能/敌方首个动作。
+ * 找不到时回退 fallback（通常为战斗分段起点）。
+ */
+export function findActPullTs(
+  events: ActLogEvent[],
+  petIds: ReadonlySet<number>,
+  fallback: number
+): number {
+  let pullTs = Infinity
+  for (const ev of events) {
+    const enemyAction = isActEnemyId(ev.sourceId) && !petIds.has(ev.sourceId)
+    const playerHitsEnemy = isActPlayerId(ev.sourceId)
+      && ev.targetId !== undefined && isActEnemyId(ev.targetId) && !petIds.has(ev.targetId)
+    if ((enemyAction || playerHitsEnemy) && ev.ts < pullTs) pullTs = ev.ts
+  }
+  return Number.isFinite(pullTs) ? pullTs : fallback
+}
+
+/**
  * 组装模拟事件流：InCombat → 所选敌方来源的 CastStart/ActionEffect → CombatEnd。
  * 玩家与玩家召唤物的事件不进入匹配事件流（敌方来源由 collectSimSources 提供，已过滤）。
  *
@@ -53,14 +74,7 @@ export function buildSimEvents(
   sourceIds: ReadonlySet<number>,
   petIds: ReadonlySet<number> = new Set()
 ): SimInputEvent[] {
-  let pullTs = Infinity
-  for (const ev of events) {
-    const enemyAction = isActEnemyId(ev.sourceId) && !petIds.has(ev.sourceId)
-    const playerHitsEnemy = isActPlayerId(ev.sourceId)
-      && ev.targetId !== undefined && isActEnemyId(ev.targetId) && !petIds.has(ev.targetId)
-    if ((enemyAction || playerHitsEnemy) && ev.ts < pullTs) pullTs = ev.ts
-  }
-  const startTs = Number.isFinite(pullTs) ? pullTs : encounter.start
+  const startTs = findActPullTs(events, petIds, encounter.start)
   const out: SimInputEvent[] = [
     { tsMs: startTs, type: 'InCombat', params: {}, label: '进入战斗（首个涉及敌方的事件）' }
   ]
