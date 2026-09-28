@@ -17,6 +17,15 @@
 
 工具栏左上角三个按钮一键切换，三种格式共享文件读写与技能名数据，但编辑界面和数据结构完全独立。
 
+## 在线使用（Web 版）
+
+**[https://shootaku.github.io/TimelineEditor/](https://shootaku.github.io/TimelineEditor/)** —— 免安装，打开浏览器即用，与桌面版同一份代码、同步更新。
+
+- 三种模式的编辑核心、FFLogs 导入、cactbot 导入全部可用（浏览器直连）
+- 推荐 Chrome/Edge：授权本地目录后直接读写文件（`%APPDATA%` 等系统目录会被浏览器拦截，可先用 `mklink /J` 联结到其他位置再授权）
+- Firefox/Safari：目录/文件以「上传」方式载入，保存以「下载」方式导出
+- 暂仅桌面版：ACT 本地日志扫描、ACR 类型发现、自动更新
+
 ## 界面预览
 
 **AE 时间轴** — 行为树编辑 + 规格驱动属性面板：
