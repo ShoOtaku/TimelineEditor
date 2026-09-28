@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import type { AcrTypeDef, TreeNode, TriggerLineDocument } from '@shared/types'
 import { askAlert } from './dialogStore'
 import { isAeNodeData, readClipboardPayload, writeClipboardPayload } from '../clipboard'
+import { platform } from '../platform'
 import {
   addNodeToParent,
   createDefaultNode,
@@ -120,7 +121,7 @@ export const useStore = create<EditorStore>()(
     acrDllNames: [],
 
     loadFile: async (path: string) => {
-      const result = await window.electronAPI.readFile(path)
+      const result = await platform.readFile(path)
       const fileName = path.split(/[/\\]/).pop() || null
       if (!result.success || !result.content) {
         console.error('Failed to read file:', result.error)
@@ -155,7 +156,7 @@ export const useStore = create<EditorStore>()(
       const { doc } = get()
       if (!doc) return false
       const content = JSON.stringify(doc, null, 2)
-      const result = await window.electronAPI.writeFile(path, content)
+      const result = await platform.writeFile(path, content)
       if (result.success) {
         const fileName = path.split(/[/\\]/).pop() || null
         set({ filePath: path, fileName, isDirty: false })
@@ -168,7 +169,7 @@ export const useStore = create<EditorStore>()(
 
     loadSpellLookup: async () => {
       try {
-        const result = await window.electronAPI.loadSpellData()
+        const result = await platform.loadSpellData()
         if (result.success && result.data) {
           set({ spellLookup: result.data })
           console.log('Spell lookup loaded:', Object.keys(result.data).length, 'actions')
@@ -180,7 +181,7 @@ export const useStore = create<EditorStore>()(
 
     loadAcrTypes: async () => {
       try {
-        const result = await window.electronAPI.discoverAcrTypes()
+        const result = await platform.discoverAcrTypes()
         if (result.success) {
           set({
             acrConditionTypes: result.conditions as AcrTypeDef[],

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePrStore } from '../store/prStore'
 import { askConfirm } from '../store/dialogStore'
 import { useDirWatch } from '../components/useDirWatch'
+import { platform } from '../platform'
 
 interface FileEntry {
   name: string
@@ -19,7 +20,7 @@ export function PrSidebar() {
   const isDirty = usePrStore(s => s.isDirty)
 
   const loadDirectory = useCallback(async (dir: string) => {
-    const result = await window.electronAPI.listDir(dir)
+    const result = await platform.listDir(dir)
     if (result.success && result.entries) {
       const entries: FileEntry[] = []
       for (const e of result.entries) {
@@ -46,7 +47,7 @@ export function PrSidebar() {
 
   useEffect(() => {
     (async () => {
-      const dir = await window.electronAPI.getPrDirectory()
+      const dir = await platform.getPrDirectory()
       const normalized = dir.replace(/\\/g, '/')
       setRootDir(normalized)
       loadDirectory(normalized)
@@ -54,7 +55,7 @@ export function PrSidebar() {
   }, [loadDirectory])
 
   useEffect(() => {
-    const unsub = window.electronAPI.onPrDirectoryChanged((newDir: string) => {
+    const unsub = platform.onPrDirectoryChanged((newDir: string) => {
       const normalized = newDir.replace(/\\/g, '/')
       setRootDir(normalized)
       loadDirectory(normalized)

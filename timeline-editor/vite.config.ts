@@ -1,14 +1,11 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
-import tailwindcss from '@tailwindcss/vite'
-import path from 'path'
+import { commonPlugins, commonResolve } from './vite.common'
 
 export default defineConfig({
   plugins: [
-    react(),
-    tailwindcss(),
+    ...commonPlugins,
     electron([
       {
         entry: 'src/main/index.ts',
@@ -41,9 +38,5 @@ export default defineConfig({
     ]),
     renderer(),
   ],
-  resolve: {
-    alias: {
-      '@shared': path.resolve(__dirname, 'src/shared'),
-    },
-  },
+  resolve: commonResolve,
 })

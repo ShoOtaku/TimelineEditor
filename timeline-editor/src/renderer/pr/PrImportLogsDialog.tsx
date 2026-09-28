@@ -7,6 +7,7 @@ import { askAlert } from '../store/dialogStore'
 import { functionalAnchors, formatPrTime } from './prModel'
 import { formatTimeMs, isLogsTimelineDoc } from '../logs/logsTypes'
 import type { LogsTimelineDoc } from '../logs/logsTypes'
+import { platform } from '../platform'
 import {
   alignedEventMs, anchorCastStart, buildSkillEntries, candidateEventsForAnchor,
   collectSkillUses, matchAnchorsToLog, placeSkills
@@ -56,8 +57,8 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
     let cancelled = false
     void (async () => {
       try {
-        const dir = await window.electronAPI.getLogsDirectory()
-        const result = await window.electronAPI.listDir(dir)
+        const dir = await platform.getLogsDirectory()
+        const result = await platform.listDir(dir)
         if (cancelled) return
         if (!result.success || !result.entries) {
           setFilesError(result.error ?? '无法读取日志目录')
@@ -81,7 +82,7 @@ export function PrImportLogsDialog({ onClose }: PrImportLogsDialogProps) {
   const openLogsFile = useCallback(async (file: LogsFileEntry) => {
     setSelectedPath(file.path)
     setLoadError('')
-    const result = await window.electronAPI.readFile(file.path)
+    const result = await platform.readFile(file.path)
     if (!result.success || !result.content) {
       setLogsDoc(null)
       setLoadError(result.error ?? '读取文件失败')

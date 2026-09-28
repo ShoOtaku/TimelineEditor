@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { CactbotCatalogFile, CactbotImportStats } from '@shared/cactbotTypes'
 import { askConfirm } from '../store/dialogStore'
 import { usePrStore } from '../store/prStore'
+import { platform } from '../platform'
 import { localizeCactbotLines } from './cactbotLocalizer'
 import { mapCactbotToDocument } from './cactbotMapper'
 import { parseCactbotTimeline } from './cactbotParser'
@@ -22,7 +23,7 @@ export function useCactbotCatalog() {
     setLoading(true)
     setLoadError('')
     try {
-      const result = await window.electronAPI.listCactbotFiles(refresh)
+      const result = await platform.listCactbotFiles(refresh)
       if (!result.success) {
         setLoadError(result.error || '无法获取 cactbot 时间轴列表')
         return
@@ -72,7 +73,7 @@ async function runImport(file: CactbotCatalogFile, context: ImportContext): Prom
   context.setImportingPath(file.path)
   context.setImportStatus(null)
   try {
-    const download = await window.electronAPI.downloadCactbotFile(
+    const download = await platform.downloadCactbotFile(
       file.path,
       context.autoLocalize && file.localizationPath !== null
     )

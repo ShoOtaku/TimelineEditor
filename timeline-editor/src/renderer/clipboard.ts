@@ -6,6 +6,8 @@
  * 负载同时是合法 JSON 文本，粘贴到文本编辑器里可查看/分享。
  */
 
+import { platform } from './platform'
+
 export type ClipboardKind = 'ae-node' | 'pr-entry' | 'pr-node'
 
 export interface ClipboardPayload {
@@ -28,13 +30,13 @@ export async function writeClipboardPayload(kind: ClipboardKind, data: unknown):
     copiedAt: new Date().toISOString(),
     data
   }
-  await window.electronAPI.clipboardWriteText(JSON.stringify(payload))
+  await platform.clipboardWriteText(JSON.stringify(payload))
 }
 
 /** 读取系统剪贴板中的应用负载；不是应用负载（或读取失败）时返回 null */
 export async function readClipboardPayload(): Promise<ClipboardPayload | null> {
   try {
-    const text = await window.electronAPI.clipboardReadText()
+    const text = await platform.clipboardReadText()
     if (!text || text.length > MAX_PAYLOAD_TEXT) return null
     const parsed = JSON.parse(text) as Partial<ClipboardPayload> | null
     if (!parsed || parsed.app !== APP_MARKER || parsed.version !== 1) return null

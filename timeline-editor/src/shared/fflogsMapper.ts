@@ -1,6 +1,6 @@
 import type {
   FflogsActor, FflogsCastEvent, FflogsFight, FflogsReportInfo
-} from '../shared/fflogsTypes'
+} from './fflogsTypes'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

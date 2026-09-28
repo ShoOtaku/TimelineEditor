@@ -11,6 +11,7 @@ import { findActionIdByName, loadActionNames } from './actionNames'
 import { SkillIconImg } from './logsIcon'
 import { askConfirm } from '../store/dialogStore'
 import { useDirWatch } from '../components/useDirWatch'
+import { platform } from '../platform'
 
 interface LogFileEntry {
   name: string
@@ -25,7 +26,7 @@ function FilesPane() {
   const loadFile = useLogsStore(s => s.loadFile)
 
   const refresh = useCallback(async (targetDir: string) => {
-    const result = await window.electronAPI.listDir(targetDir)
+    const result = await platform.listDir(targetDir)
     if (result.success && result.entries) {
       setFiles(result.entries
         .filter(e => !e.isDirectory && e.name.endsWith('.json'))
@@ -41,7 +42,7 @@ function FilesPane() {
   useEffect(() => {
     // 主进程 IPC 并行开发中，方法可能尚不存在
     void Promise.resolve()
-      .then(() => window.electronAPI.getLogsDirectory())
+      .then(() => platform.getLogsDirectory())
       .then(d => {
         const normalized = d.replace(/\\/g, '/')
         setDir(normalized)
@@ -52,7 +53,7 @@ function FilesPane() {
 
   useEffect(() => {
     try {
-      return window.electronAPI.onLogsDirectoryChanged(newDir => {
+      return platform.onLogsDirectoryChanged(newDir => {
         const normalized = newDir.replace(/\\/g, '/')
         setDir(normalized)
         void refresh(normalized)
@@ -63,7 +64,7 @@ function FilesPane() {
   }, [refresh])
 
   const changeDir = useCallback(async () => {
-    const result = await window.electronAPI.selectLogsDirectory()
+    const result = await platform.selectLogsDirectory()
     if (!result.cancelled && result.directory) {
       const normalized = result.directory.replace(/\\/g, '/')
       setDir(normalized)

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { platform } from '../platform'
 
 const normalize = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
@@ -6,13 +7,13 @@ const normalize = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 export function useDirWatch(dir: string, reload: (dir: string) => void) {
   useEffect(() => {
     if (!dir) return
-    void window.electronAPI.watchDir(dir)
-    return () => { void window.electronAPI.unwatchDir(dir) }
+    void platform.watchDir(dir)
+    return () => { void platform.unwatchDir(dir) }
   }, [dir])
 
   useEffect(() => {
     if (!dir) return
-    return window.electronAPI.onDirChanged(changed => {
+    return platform.onDirChanged(changed => {
       if (normalize(changed) === normalize(dir)) reload(dir)
     })
   }, [dir, reload])

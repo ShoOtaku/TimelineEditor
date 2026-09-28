@@ -1,5 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  DirEntry, DirListResult, DialogResult, FileResult, FileStatResult, PlatformApi
+} from '../shared/platformApi'
+import type {
   AppSettings, CactbotCatalogResult, CactbotDownloadResult,
   ProxySettings, ProxyTestResult
 } from '../shared/cactbotTypes'
@@ -14,37 +17,7 @@ import type {
 import type { JobSkillDatabase } from '../shared/jobSkillTypes'
 import type { ActionNameDatabase } from '../shared/actionNameTypes'
 
-export interface FileResult {
-  success: boolean
-  content?: string
-  error?: string
-}
-
-export interface FileStatResult {
-  success: boolean
-  size?: number
-  mtime?: number
-  isDirectory?: boolean
-  error?: string
-}
-
-export interface DirEntry {
-  name: string
-  isDirectory: boolean
-}
-
-export interface DirListResult {
-  success: boolean
-  entries?: DirEntry[]
-  error?: string
-}
-
-export interface DialogResult {
-  cancelled: boolean
-  filePath: string | null
-}
-
-const api = {
+const api: PlatformApi = {
   readFile: (filePath: string): Promise<FileResult> =>
     ipcRenderer.invoke('file:read', filePath),
   writeFile: (filePath: string, content: string): Promise<FileResult> =>

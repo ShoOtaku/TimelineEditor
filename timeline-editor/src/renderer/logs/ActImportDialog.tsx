@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, Download, FolderOpen, LoaderCircle, RefreshCw } from 'lucide-react'
 import type { ActEncounter, ActLogFileInfo, ActScanResult } from '@shared/actTypes'
 import { ModalShell } from '../components/ModalShell'
+import { platform } from '../platform'
 import { useLogsStore } from './logsStore'
 import { formatTimeMs } from './logsTypes'
 import type { ParsedFflogsData } from './fflogsImport'
@@ -89,7 +90,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
   const loadFiles = useCallback(async (directory?: string) => {
     setFileListError('')
     try {
-      const result = await window.electronAPI.listActLogFiles(directory)
+      const result = await platform.listActLogFiles(directory)
       if (result.success) setFiles(result.data)
       else {
         setFiles([])
@@ -106,7 +107,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
     let mounted = true
     void (async () => {
       try {
-        const directory = await window.electronAPI.getActLogsDirectory()
+        const directory = await platform.getActLogsDirectory()
         if (!mounted) return
         setDir(directory)
         void loadFiles(directory)
@@ -118,7 +119,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
   // 进度按 requestId + 当前阶段分发
   useEffect(() => {
     try {
-      return window.electronAPI.onActProgress(p => {
+      return platform.onActProgress(p => {
         if (p.requestId !== reqIdRef.current) return
         const update = { percent: p.percent, lines: p.lines }
         if (phaseRef.current === 'scan') setScanProgress(update)
@@ -133,14 +134,14 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
   useEffect(() => {
     return () => {
       try {
-        if (reqIdRef.current) void window.electronAPI.cancelActLog(reqIdRef.current)
+        if (reqIdRef.current) void platform.cancelActLog(reqIdRef.current)
       } catch { /* IPC 未就绪 */ }
     }
   }, [])
 
   const changeDirectory = useCallback(async () => {
     try {
-      const result = await window.electronAPI.selectActLogsDirectory()
+      const result = await platform.selectActLogsDirectory()
       if (!result.cancelled && result.directory) {
         setDir(result.directory)
         void loadFiles(result.directory)
@@ -150,7 +151,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
 
   const browseFile = useCallback(async () => {
     try {
-      const result = await window.electronAPI.openActLogFileDialog()
+      const result = await platform.openActLogFileDialog()
       if (!result.cancelled && result.filePath) {
         const path = result.filePath
         setSelectedFile({ path, name: path.split(/[\\/]/).pop() ?? path })
@@ -172,7 +173,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
     setScanResult(null)
     setStep(2)
     try {
-      const result = await window.electronAPI.scanActLog({ requestId, path: selectedFile.path, gapMs })
+      const result = await platform.scanActLog({ requestId, path: selectedFile.path, gapMs })
       if (result.success) {
         setScanResult(result.data)
         const last = result.data.encounters[result.data.encounters.length - 1]
@@ -200,7 +201,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
     setParseProgress({ percent: 0, lines: 0 })
     try {
       const namesPromise = loadActionNames()
-      const result = await window.electronAPI.parseActLog({
+      const result = await platform.parseActLog({
         requestId,
         path: selectedFile.path,
         start: selectedEncounter.start,
@@ -237,7 +238,7 @@ export function ActImportDialog({ onClose }: ActImportDialogProps) {
 
   const cancelRun = useCallback(() => {
     cancelledRef.current = true
-    if (reqIdRef.current) void window.electronAPI.cancelActLog(reqIdRef.current)
+    if (reqIdRef.current) void platform.cancelActLog(reqIdRef.current)
   }, [])
 
   const doImport = useCallback(async () => {

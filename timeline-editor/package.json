@@ -5,7 +5,9 @@
   "main": "dist-electron/index.js",
   "scripts": {
     "dev": "vite",
+    "dev:web": "vite --config vite.web.config.ts",
     "build": "vite build",
+    "build:web": "vite build --config vite.web.config.ts",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "package": "npm run build && electron-builder --win dir",

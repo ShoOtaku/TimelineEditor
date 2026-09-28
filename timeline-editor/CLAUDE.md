@@ -12,7 +12,9 @@ FFXIV 时间轴外部编辑器，支持三种模式（工具栏左上按钮循�
 timeline-editor/
 ├── index.html                  # Vite 入口 HTML
 ├── package.json                # Electron + React + Vite
-├── vite.config.ts              # Vite + vite-plugin-electron
+├── vite.config.ts              # Electron 构建（引用 vite.common.ts + vite-plugin-electron）
+├── vite.web.config.ts          # Web 版构建（静态站点 → dist-web/，供 GitHub Pages）
+├── vite.common.ts              # 两端共用插件/alias
 ├── tsconfig.json               # 渲染进程 TS 配置
 ├── tsconfig.node.json          # 主进程 TS 配置
 ├── electron-builder.yml        # Windows 打包配置
@@ -21,9 +23,11 @@ timeline-editor/
 │   │   ├── index.ts            # Electron 主进程 — 窗口创建、IPC 处理器、AE 目录配置
 │   │   └── dotnetMeta.ts       # 纯 TS .NET PE/CLI 元数据解析器 — 读 DLL 类型/字段/QT key
 │   ├── preload/
-│   │   └── preload.ts          # Context bridge — 暴露 window.electronAPI（16 通道）
+│   │   └── preload.ts          # Context bridge — 暴露 window.electronAPI（实现 PlatformApi 契约）
 │   ├── shared/
 │   │   ├── types.ts            # AE 完整 TS 类型系统（10 节点类型 + ACR TypeDef）
+│   │   ├── platformApi.ts      # 平台能力契约 —— Electron preload 与 Web 适配器共同实现
+│   │   ├── fflogsMapper.ts     # FFLogs 响应解析（纯函数，主进程与 Web 适配器共用）
 │   │   ├── prTypes.ts          # PR (PureTimeline) 类型系统 + 全部枚举常量
 │   │   ├── prSpecTypes.ts      # PR 字段规格类型 + 共用字段（Immediate/Negate/比较符/目标）
 │   │   ├── prConditionSpecs.ts # 15 种条件的 TypeKey/名称/字段规格
@@ -33,8 +37,14 @@ timeline-editor/
 │   │   └── index.ts            # PluginRegistry 单例（预留扩展框架）
 │   └── renderer/
 │       ├── main.tsx            # React 入口（DEV 下暴露 window.__prStore 供 CDP/E2E 脚本用）
+│       ├── monacoSetup.ts      # Monaco 本地打包初始化（loader.config + editor worker，两端共用）
 │       ├── App.tsx             # 主布局 — Sidebar | TreeView | PropertyPanel + ScriptPanel
-│       ├── env.d.ts            # window.electronAPI 类型声明
+│       ├── env.d.ts            # window.electronAPI 类型声明（引用 shared/platformApi）
+│       ├── platform/           # 平台抽象层 —— UI 只依赖 platform 单例，不知晓运行环境
+│       │   ├── index.ts        # 运行时探测导出 platform 单例（Electron 直通 / Web 适配器）
+│       │   ├── types.ts        # Platform = PlatformApi + kind + capabilities（能力声明驱动 UI 显隐）
+│       │   ├── electron.ts     # Electron 适配器（直通 window.electronAPI，全能力）
+│       │   └── web/            # Web 适配器（fs.ts 虚拟路径文件系统/fflogs.ts/cactbot.ts/settings.ts/idb.ts）
 │       ├── clipboard.ts        # 跨实例复制粘贴 — 系统剪贴板 JSON 负载读写 + 形状守卫
 │       ├── index.css           # TailwindCSS + 暗色主题 + 自定义 .field-input .field-input
 │       ├── store/
@@ -121,7 +131,9 @@ timeline-editor/
 ```bash
 cd timeline-editor
 npm run dev       # 启动 Vite + Electron
+npm run dev:web   # 启动纯浏览器版（Vite dev server，无 Electron）
 npm run build     # 生产构建（渲染 + 主进程 + preload）
+npm run build:web # Web 版静态构建（→ dist-web/，base=/TimelineEditor/）
 npm run lint      # TypeScript 类型检查
 npm run dist      # 打包为 .exe（→ release/Timeline Editor 1.0.0.exe）
 ```
@@ -249,6 +261,15 @@ interface AcrTypeDef {
 
 ## 关键架构
 
+### 平台抽象（Electron / Web 双端）
+
+渲染进程的所有平台能力调用经 `renderer/platform/` 的 `platform` 单例（契约 = `shared/platformApi.ts::PlatformApi`），**禁止**在 UI 代码中直接访问 `window.electronAPI`。运行时探测：preload 注入了 `window.electronAPI` → Electron 适配器（全能力直通）；否则 → Web 适配器。
+
+- **能力声明驱动 UI 显隐**：`platform.capabilities`（fileSystemAccess/directoryWatch/actLogScan/acrDiscovery/updater/proxy）。新增能力时只翻标志位，UI 不改
+- **Web 虚拟路径**：`/<根名>/<子路径>` 映射 File System Access 句柄（根目录句柄持久化到 IndexedDB，每次会话需重新授权权限）；文件对话框单独选取的文件挂 `/picked/` 下；优先用 `root.resolve(file)` 归并到已授权根目录
+- **Web 端降级**：设置存 localStorage；ACT 扫描/ACR 发现返回「暂不支持」错误；目录监视为 no-op（无自动刷新）；无自动更新；FFLogs/cactbot 走浏览器直连（cn.fflogs.com 与 GitHub API 均有 CORS 头，已实测）。无 File System Access 的浏览器（Firefox/Safari）再降一档：目录经 `webkitdirectory` 整目录上传载入内存（仅本会话），保存/另存为以浏览器下载导出
+- **部署**：`.github/workflows/pages.yml`（push main → `build:web` → GitHub Pages，`base=/TimelineEditor/`）；桌面版 release.yml 不变，两条流水线互不干扰
+
 ### AE 目录配置
 
 - 路径持久化到 `%APPDATA%/Timeline Editor/ae-config.json`
@@ -265,6 +286,8 @@ interface AcrTypeDef {
 `loadFile(path)` → IPC `file:read` → `JSON.parse` → 写入 Zustand store。加载时清空 undo/redo。
 
 ### IPC 通道（40 个）
+
+渲染进程不直接引用这些通道 —— preload 把它们封装成 `window.electronAPI`，UI 统一经 `renderer/platform` 的 `platform` 单例调用；Web 端由浏览器适配器实现同一契约，不走 IPC。
 
 `file:read` `file:write` `file:exists` `file:stat` `file:listDir` |
 `dialog:openFile` `dialog:saveFile` `dialog:selectAeDirectory` |

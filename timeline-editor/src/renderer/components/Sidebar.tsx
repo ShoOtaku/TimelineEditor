@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { askConfirm } from '../store/dialogStore'
+import { platform } from '../platform'
 import { useDirWatch } from './useDirWatch'
 
 interface FileEntry {
@@ -19,7 +20,7 @@ export function Sidebar() {
   const isDirty = useStore(s => s.isDirty)
 
   const loadDirectory = useCallback(async (dir: string) => {
-    const result = await window.electronAPI.listDir(dir)
+    const result = await platform.listDir(dir)
     if (result.success && result.entries) {
       const entries: FileEntry[] = []
       for (const e of result.entries) {
@@ -44,8 +45,8 @@ export function Sidebar() {
   // Initial load
   useEffect(() => {
     (async () => {
-      const dir = await window.electronAPI.getDefaultDir()
-      const ae = await window.electronAPI.getAeDirectory()
+      const dir = await platform.getDefaultDir()
+      const ae = await platform.getAeDirectory()
       setDefaultDir(dir)
       setAeDir(ae)
       setCurrentDir(dir)
@@ -55,7 +56,7 @@ export function Sidebar() {
 
   // Listen for AE directory changes
   useEffect(() => {
-    const unsub = window.electronAPI.onAeDirectoryChanged(async (newAeDir: string) => {
+    const unsub = platform.onAeDirectoryChanged(async (newAeDir: string) => {
       setAeDir(newAeDir)
       const newTriggerlinesDir = newAeDir.replace(/\\/g, '/') + '/Triggerlines'
       setDefaultDir(newTriggerlinesDir)

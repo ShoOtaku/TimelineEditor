@@ -5,7 +5,7 @@ import type {
   FflogsCastEvent, FflogsFetchCastsRequest, FflogsFetchProgress,
   FflogsReportInfo, FflogsResult
 } from '../shared/fflogsTypes'
-import { extractApiError, mergeCastPages, parseReportInfo } from './fflogsMapper'
+import { extractApiError, mergeCastPages, parseReportInfo } from '../shared/fflogsMapper'
 
 const REQUEST_TIMEOUT_MS = 30_000
 const REPORT_CODE_PATTERN = /^[A-Za-z0-9]{6,32}$/

@@ -7,6 +7,7 @@ import type { EditorMode } from '../store/prStore'
 import { useStore } from '../store'
 import { usePrStore } from '../store/prStore'
 import { useLogsStore } from '../logs/logsStore'
+import { platform } from '../platform'
 
 interface ToolbarProps {
   mode: EditorMode
@@ -50,6 +51,7 @@ const MODE_ORDER: EditorMode[] = ['ae', 'pr', 'logs']
 
 export function Toolbar(props: ToolbarProps) {
   const mode = props.mode
+  const capabilities = platform.capabilities
   return <div className="flex h-11 shrink-0 select-none items-center gap-1 border-b border-gray-700 bg-gray-800 px-3">
       <ModeSwitcher mode={mode} onSwitch={props.onSwitchMode} />
       <Divider />
@@ -63,12 +65,12 @@ export function Toolbar(props: ToolbarProps) {
             active={props.showScript} onClick={props.onToggleScript} />
         </>
       )}
-      {mode === 'ae' && (
+      {mode === 'ae' && capabilities.acrDiscovery && (
         <ToolbarCommand icon={ScanSearch} label="ACR" title="切换 ACR 类型浏览器"
           active={props.showAcrViewer} onClick={props.onToggleAcrViewer} />
       )}
       <div className="min-w-3 flex-1" />
-      <UpdateCommand available={props.updateAvailable} onClick={props.onCheckUpdate} />
+      {capabilities.updater && <UpdateCommand available={props.updateAvailable} onClick={props.onCheckUpdate} />}
       <ToolbarIcon icon={Settings} label="设置" title="设置" onClick={props.onOpenSettings} />
       <span className="ml-2 max-w-80 truncate text-xs text-gray-400" title={props.fileName ?? '未命名'}>
         {props.fileName || '未命名'}
@@ -109,7 +111,8 @@ function DocumentCommands({ mode, props }: { mode: EditorMode; props: ToolbarPro
     {mode === 'logs' && <>
       <ToolbarCommand icon={Plus} label="新建" title="新建战斗日志时间轴" onClick={props.onNewLogs} />
       <ToolbarCommand icon={Download} label="FFLogs" title="粘贴 FFLogs 报告链接，把一场真实战斗的记录（BOSS 事件 + 玩家实际技能使用）导入当前文档" onClick={props.onOpenFflogs} />
-      <ToolbarCommand icon={FileClock} label="ACT" title="从本机 ACT 日志文件（Network_*.log）挑一场战斗，把实际战斗记录导入当前文档" onClick={props.onOpenAct} />
+      {platform.capabilities.actLogScan &&
+        <ToolbarCommand icon={FileClock} label="ACT" title="从本机 ACT 日志文件（Network_*.log）挑一场战斗，把实际战斗记录导入当前文档" onClick={props.onOpenAct} />}
     </>}
     <ToolbarIcon icon={FolderOpen} label="打开" title="打开（Ctrl+O）" onClick={props.onOpen} />
     <ToolbarIcon icon={Save} label="保存" title="保存（Ctrl+S）" onClick={props.onSave} />

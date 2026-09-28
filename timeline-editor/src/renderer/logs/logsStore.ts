@@ -8,6 +8,7 @@ import {
   columnMatchName, createEmptyDoc, dedupeByTime, insertByTime, isLogsTimelineDoc, newId
 } from './logsTypes'
 import { askAlert } from '../store/dialogStore'
+import { platform } from '../platform'
 
 export type LogsSelection =
   | { kind: 'event'; id: string }
@@ -132,7 +133,7 @@ export const useLogsStore = create<LogsStore>()(
     },
 
     loadFile: async (path) => {
-      const result = await window.electronAPI.readFile(path)
+      const result = await platform.readFile(path)
       const fileName = path.split(/[/\\]/).pop() || path
       if (!result.success || !result.content) {
         set({ loadError: `读取文件失败: ${result.error ?? '未知错误'}` })
@@ -169,7 +170,7 @@ export const useLogsStore = create<LogsStore>()(
       const { doc } = get()
       if (!doc) return false
       const content = JSON.stringify(doc, null, 2)
-      const result = await window.electronAPI.writeFile(path, content)
+      const result = await platform.writeFile(path, content)
       if (result.success) {
         set({ filePath: path, fileName: path.split(/[/\\]/).pop() || null, isDirty: false })
         return true

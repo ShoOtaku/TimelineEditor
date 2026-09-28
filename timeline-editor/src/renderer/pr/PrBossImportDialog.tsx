@@ -11,6 +11,7 @@ import type { ActionNameDatabase } from '@shared/actionNameTypes'
 import { ModalShell } from '../components/ModalShell'
 import { askAlert, askConfirm } from '../store/dialogStore'
 import { usePrStore } from '../store/prStore'
+import { platform } from '../platform'
 import { formatPrTime } from './prModel'
 import { formatTimeMs } from '../logs/logsTypes'
 import { EncounterStep, FileStep } from '../logs/ActImportDialog'
@@ -135,7 +136,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
   const loadFiles = useCallback(async (directory?: string) => {
     setFileListError('')
     try {
-      const result = await window.electronAPI.listActLogFiles(directory)
+      const result = await platform.listActLogFiles(directory)
       if (result.success) setFiles(result.data)
       else {
         setFiles([])
@@ -151,7 +152,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
     let mounted = true
     void (async () => {
       try {
-        const directory = await window.electronAPI.getActLogsDirectory()
+        const directory = await platform.getActLogsDirectory()
         if (!mounted) return
         setDir(directory)
         void loadFiles(directory)
@@ -162,7 +163,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
 
   useEffect(() => {
     try {
-      return window.electronAPI.onActProgress(p => {
+      return platform.onActProgress(p => {
         if (p.requestId !== reqIdRef.current) return
         const update = { percent: p.percent, lines: p.lines }
         if (phaseRef.current === 'scan') setScanProgress(update)
@@ -175,7 +176,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
 
   useEffect(() => {
     try {
-      return window.electronAPI.onFflogsProgress(p => {
+      return platform.onFflogsProgress(p => {
         if (p.requestId !== ffReqRef.current) return
         setCastsProgress({ percent: p.percent, page: p.page, events: p.events })
       })
@@ -187,15 +188,15 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
   useEffect(() => {
     return () => {
       try {
-        if (reqIdRef.current) void window.electronAPI.cancelActLog(reqIdRef.current)
-        if (ffReqRef.current) void window.electronAPI.cancelFflogsCasts(ffReqRef.current)
+        if (reqIdRef.current) void platform.cancelActLog(reqIdRef.current)
+        if (ffReqRef.current) void platform.cancelFflogsCasts(ffReqRef.current)
       } catch { /* IPC 未就绪 */ }
     }
   }, [])
 
   const changeDirectory = useCallback(async () => {
     try {
-      const result = await window.electronAPI.selectActLogsDirectory()
+      const result = await platform.selectActLogsDirectory()
       if (!result.cancelled && result.directory) {
         setDir(result.directory)
         void loadFiles(result.directory)
@@ -205,7 +206,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
 
   const browseFile = useCallback(async () => {
     try {
-      const result = await window.electronAPI.openActLogFileDialog()
+      const result = await platform.openActLogFileDialog()
       if (!result.cancelled && result.filePath) {
         const path = result.filePath
         setSelectedFile({ path, name: path.split(/[\\/]/).pop() ?? path })
@@ -226,7 +227,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
     setScanProgress({ percent: 0, lines: 0 })
     setScanResult(null)
     try {
-      const result = await window.electronAPI.scanActLog({ requestId, path: selectedFile.path, gapMs })
+      const result = await platform.scanActLog({ requestId, path: selectedFile.path, gapMs })
       if (result.success) {
         setScanResult(result.data)
         const last = result.data.encounters[result.data.encounters.length - 1]
@@ -254,7 +255,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
     setParseError('')
     setParseProgress({ percent: 0, lines: 0 })
     try {
-      const result = await window.electronAPI.parseActLog({
+      const result = await platform.parseActLog({
         requestId,
         path: selectedFile.path,
         start: selectedEncounter.start,
@@ -279,7 +280,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
 
   const cancelRun = useCallback(() => {
     cancelledRef.current = true
-    if (reqIdRef.current) void window.electronAPI.cancelActLog(reqIdRef.current)
+    if (reqIdRef.current) void platform.cancelActLog(reqIdRef.current)
   }, [])
 
   // ---------- FFLogs 流程 ----------
@@ -289,7 +290,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
     setReportError('')
     setReport(null)
     try {
-      const result = await window.electronAPI.fetchFflogsReport(code, apiKey || undefined)
+      const result = await platform.fetchFflogsReport(code, apiKey || undefined)
       if (result.success) {
         setReport(result.data)
         const last = result.data.fights[result.data.fights.length - 1]
@@ -315,7 +316,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
     setCastsProgress({ percent: 0, page: 0, events: 0 })
     try {
       const namesPromise = loadActionNames()
-      const result = await window.electronAPI.fetchFflogsCasts({
+      const result = await platform.fetchFflogsCasts({
         requestId,
         code,
         apiKey: apiKey || undefined,
@@ -344,7 +345,7 @@ export function PrBossImportDialog({ onClose }: PrBossImportDialogProps) {
 
   const cancelDownload = useCallback(() => {
     cancelledRef.current = true
-    if (ffReqRef.current) void window.electronAPI.cancelFflogsCasts(ffReqRef.current)
+    if (ffReqRef.current) void platform.cancelFflogsCasts(ffReqRef.current)
   }, [])
 
   // ---------- 导入 ----------

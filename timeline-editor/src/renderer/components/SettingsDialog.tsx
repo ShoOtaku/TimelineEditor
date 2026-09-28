@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  AlertCircle, CheckCircle2, FolderOpen, LoaderCircle, Network, Save, TestTube2, Type
+  AlertCircle, CheckCircle2, FolderOpen, LoaderCircle, Network, Save, TestTube2, Type, Upload
 } from 'lucide-react'
 import type { AppSettings, ProxySettings, ProxyTestResult } from '@shared/cactbotTypes'
 import { DEFAULT_PROXY_SETTINGS, validateProxySettings } from '@shared/networkSettings'
 import { useUiSettings } from '../store/uiSettingsStore'
+import { platform } from '../platform'
 import { ModalShell } from './ModalShell'
 
 interface SettingsDialogProps {
@@ -36,17 +37,17 @@ function useSettingsModel() {
   const [testing, setTesting] = useState(false)
 
   useEffect(() => {
-    window.electronAPI.getSettings().then(result => {
+    platform.getSettings().then(result => {
       setSettings(result)
       setProxy(result.proxy)
     }).catch(error => setFeedback({ kind: 'error', message: `读取设置失败: ${String(error)}` }))
   }, [])
   const saveProxy = useSaveProxy(proxy, setProxy, setFeedback, setSaving)
   const testConnection = useTestConnection(saveProxy, setFeedback, setTesting)
-  const selectDirectory = useDirectorySelection(setSettings, setFeedback)
+  const { selectDirectory, uploadDirectory } = useDirectorySelection(setSettings, setFeedback)
   const fontSizePercent = useUiSettings(s => s.fontSizePercent)
   const changeFontSize = useFontSizeChange(setSettings, setFeedback)
-  return { settings, proxy, setProxy, feedback, saving, testing, saveProxy, testConnection, selectDirectory, fontSizePercent, changeFontSize }
+  return { settings, proxy, setProxy, feedback, saving, testing, saveProxy, testConnection, selectDirectory, uploadDirectory, fontSizePercent, changeFontSize }
 }
 
 function useSaveProxy(
@@ -64,7 +65,7 @@ function useSaveProxy(
     setSaving(true)
     setFeedback({ kind: 'info', message: '正在应用网络设置...' })
     try {
-      const result = await window.electronAPI.setProxySettings(validation.settings)
+      const result = await platform.setProxySettings(validation.settings)
       if (!result.success) {
         setFeedback({ kind: 'error', message: result.error })
         return false
@@ -91,7 +92,7 @@ function useTestConnection(
     setTesting(true)
     setFeedback({ kind: 'info', message: '正在通过当前网络设置访问 GitHub...' })
     try {
-      const result = await window.electronAPI.testCactbotProxy()
+      const result = await platform.testCactbotProxy()
       setFeedback(toTestFeedback(result))
     } catch (error) {
       setFeedback({ kind: 'error', message: `连接测试失败: ${formatUiError(error)}` })
@@ -105,22 +106,39 @@ function useDirectorySelection(
   setSettings: Dispatch<SetStateAction<AppSettings | null>>,
   setFeedback: Dispatch<SetStateAction<Feedback>>
 ) {
-  return useCallback(async (kind: 'ae' | 'pr') => {
+  const applyDirectory = useCallback((kind: 'ae' | 'pr', directory: string, uploadMode: boolean) => {
+    setSettings(current => current ? {
+      ...current,
+      [kind === 'ae' ? 'aeDirectory' : 'prDirectory']: directory
+    } : current)
+    setFeedback({
+      kind: 'success',
+      message: uploadMode
+        ? `${kind === 'ae' ? 'AE' : 'PR'} 目录已更新（上传模式：仅本次会话，保存将以下载导出）`
+        : `${kind === 'ae' ? 'AE' : 'PR'} 目录已更新`
+    })
+  }, [setFeedback, setSettings])
+  const selectDirectory = useCallback(async (kind: 'ae' | 'pr') => {
     try {
       const result = kind === 'ae'
-        ? await window.electronAPI.selectAeDirectory()
-        : await window.electronAPI.selectPrDirectory()
-      if (!result.cancelled && result.directory) {
-        setSettings(current => current ? {
-          ...current,
-          [kind === 'ae' ? 'aeDirectory' : 'prDirectory']: result.directory!
-        } : current)
-        setFeedback({ kind: 'success', message: `${kind === 'ae' ? 'AE' : 'PR'} 目录已更新` })
-      }
+        ? await platform.selectAeDirectory()
+        : await platform.selectPrDirectory()
+      if (!result.cancelled && result.directory) applyDirectory(kind, result.directory, false)
     } catch (error) {
       setFeedback({ kind: 'error', message: `选择目录失败: ${formatUiError(error)}` })
     }
-  }, [setFeedback, setSettings])
+  }, [applyDirectory, setFeedback])
+  // 上传模式：FSA 不可用，或目录是被浏览器拦截的系统目录（如 AppData 下）时使用
+  const uploadDirectory = useCallback(async (kind: 'ae' | 'pr') => {
+    if (!platform.selectDirectoryViaUpload) return
+    try {
+      const result = await platform.selectDirectoryViaUpload(kind)
+      if (!result.cancelled && result.directory) applyDirectory(kind, result.directory, true)
+    } catch (error) {
+      setFeedback({ kind: 'error', message: `上传目录失败: ${formatUiError(error)}` })
+    }
+  }, [applyDirectory, setFeedback])
+  return { selectDirectory, uploadDirectory }
 }
 
 function useFontSizeChange(
@@ -133,7 +151,7 @@ function useFontSizeChange(
     if (percent === previous) return
     setFontSizePercent(percent) // 立即预览，持久化失败时回退
     try {
-      const result = await window.electronAPI.setFontSize(percent)
+      const result = await platform.setFontSize(percent)
       if (!result.success) {
         setFontSizePercent(previous)
         setFeedback({ kind: 'error', message: result.error })
@@ -171,21 +189,37 @@ function SettingsFooter(model: SettingsModel) {
 function SettingsBody(model: SettingsModel) {
   if (!model.settings) return <SettingsSkeleton />
   return <div className="divide-y divide-gray-700">
-    <DirectoriesSection settings={model.settings} onSelect={model.selectDirectory} />
+    <DirectoriesSection settings={model.settings} onSelect={model.selectDirectory} onUploadSelect={model.uploadDirectory} />
     <AppearanceSection fontSizePercent={model.fontSizePercent} onChange={model.changeFontSize} />
-    <NetworkSection proxy={model.proxy} setProxy={model.setProxy} />
+    {/* 浏览器无法设置代理，网页版隐藏网络代理分区 */}
+    {platform.capabilities.proxy && <NetworkSection proxy={model.proxy} setProxy={model.setProxy} />}
   </div>
 }
 
-function DirectoriesSection({ settings, onSelect }: {
-  settings: AppSettings; onSelect: (kind: 'ae' | 'pr') => Promise<void>
+function DirectoriesSection({ settings, onSelect, onUploadSelect }: {
+  settings: AppSettings
+  onSelect: (kind: 'ae' | 'pr') => Promise<void>
+  onUploadSelect: (kind: 'ae' | 'pr') => Promise<void>
 }) {
+  // FSA 可用时仍有上传入口：系统目录（如 %APPDATA% 下的默认目录）会被浏览器拦截
+  const showUpload = platform.kind === 'web' && Boolean(platform.selectDirectoryViaUpload)
   return <section className="px-5 py-5" aria-labelledby="directories-title">
     <h3 id="directories-title" className="text-sm font-semibold text-gray-200">时间轴目录</h3>
     <p className="mt-1 text-xs text-gray-500">目录变更会立即刷新对应的文件浏览器。</p>
+    {!platform.capabilities.fileSystemAccess &&
+      <p className="mt-2 rounded border border-amber-800/60 bg-amber-950/40 px-2.5 py-1.5 text-[11px] text-amber-300/90">
+        当前浏览器不支持直接读写本地目录：目录与文件以「上传」方式载入（仅本次会话有效），保存将以「下载」方式导出。使用 Chrome/Edge 可获得完整体验。
+      </p>}
+    {platform.kind === 'web' && platform.capabilities.fileSystemAccess &&
+      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+        浏览器无法授权系统目录（如 AppData 下的默认目录）。如遇拦截：点目录行的 <Upload size={11} className="inline" /> 上传按钮以只读方式载入（保存时下载导出），
+        或先用 <code className="rounded bg-gray-800 px-1">mklink /J</code> 把目录联结到其他位置后再授权（可正常读写）。
+      </p>}
     <div className="mt-4 space-y-3">
-      <DirectoryRow label="AEAssist" path={settings.aeDirectory} onSelect={() => onSelect('ae')} />
-      <DirectoryRow label="PromeRotation" path={settings.prDirectory} onSelect={() => onSelect('pr')} />
+      <DirectoryRow label="AEAssist" path={settings.aeDirectory} onSelect={() => onSelect('ae')}
+        onUploadSelect={showUpload ? () => onUploadSelect('ae') : undefined} />
+      <DirectoryRow label="PromeRotation" path={settings.prDirectory} onSelect={() => onSelect('pr')}
+        onUploadSelect={showUpload ? () => onUploadSelect('pr') : undefined} />
     </div>
   </section>
 }
@@ -262,16 +296,25 @@ function ProxyFields({ proxy, setProxy }: {
   </div>
 }
 
-function DirectoryRow({ label, path, onSelect }: { label: string; path: string; onSelect: () => void }) {
+function DirectoryRow({ label, path, onSelect, onUploadSelect }: {
+  label: string; path: string; onSelect: () => void; onUploadSelect?: () => void
+}) {
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)_36px] items-center gap-3">
+    <div className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3">
       <span className="text-xs font-medium text-gray-400">{label}</span>
       <div className="truncate rounded border border-gray-700 bg-gray-950 px-2.5 py-1.5 font-mono text-xs text-gray-300" title={path}>
         {path}
       </div>
-      <button type="button" onClick={onSelect} className="icon-button" aria-label={`选择 ${label} 目录`} title={`选择 ${label} 目录`}>
-        <FolderOpen size={16} aria-hidden="true" />
-      </button>
+      <div className="flex items-center gap-1">
+        {onUploadSelect &&
+          <button type="button" onClick={onUploadSelect} className="icon-button"
+            aria-label={`上传模式载入 ${label} 目录`} title={`上传模式载入 ${label} 目录（只读，保存时下载导出）——用于浏览器拦截的系统目录`}>
+            <Upload size={16} aria-hidden="true" />
+          </button>}
+        <button type="button" onClick={onSelect} className="icon-button" aria-label={`选择 ${label} 目录`} title={`选择 ${label} 目录`}>
+          <FolderOpen size={16} aria-hidden="true" />
+        </button>
+      </div>
     </div>
   )
 }

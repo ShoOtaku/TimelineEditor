@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { platform } from '../platform'
 
 type UpdatePhase =
   | 'checking'
@@ -48,7 +49,7 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
 
   // Listen for download progress
   useEffect(() => {
-    const unsub = window.electronAPI.onUpdateProgress((p) => {
+    const unsub = platform.onUpdateProgress((p) => {
       setProgress(p)
     })
     return unsub
@@ -58,7 +59,7 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
     setPhase('checking')
     setErrorMsg('')
     try {
-      const result = await window.electronAPI.checkForUpdates()
+      const result = await platform.checkForUpdates()
       if (result.error) {
         setErrorMsg(result.error)
         setPhase('error')
@@ -81,7 +82,7 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
     setPhase('downloading')
     setErrorMsg('')
     try {
-      const result = await window.electronAPI.downloadUpdate(updateInfo.zipUrl)
+      const result = await platform.downloadUpdate(updateInfo.zipUrl)
       if (result.success && result.zipPath) {
         setZipPath(result.zipPath)
         setPhase('download-done')
@@ -100,7 +101,7 @@ export function UpdateDialog({ onClose }: UpdateDialogProps) {
     setPhase('installing')
     setErrorMsg('')
     try {
-      await window.electronAPI.installUpdate(zipPath)
+      await platform.installUpdate(zipPath)
       // Main process will quit the app shortly — don't show error
     } catch (err) {
       setErrorMsg(String(err))

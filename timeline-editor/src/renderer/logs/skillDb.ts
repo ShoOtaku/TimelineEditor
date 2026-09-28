@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { JobSkillDatabase, JobSkillDef } from '@shared/jobSkillTypes'
+import { platform } from '../platform'
 
 let cache: JobSkillDatabase | null = null
 let loadStarted = false
@@ -13,7 +14,7 @@ function notify(): void {
 
 async function load(): Promise<void> {
   try {
-    const result = await window.electronAPI.loadJobSkills()
+    const result = await platform.loadJobSkills()
     if (result.success && result.data) {
       cache = result.data
       notify()

@@ -3,6 +3,7 @@
 // 加载失败时整体降级为 FFLogs 原名，不影响导入流程
 
 import type { ActionNameDatabase } from '@shared/actionNameTypes'
+import { platform } from '../platform'
 
 let cache: ActionNameDatabase | null = null
 let pending: Promise<ActionNameDatabase | null> | null = null
@@ -13,7 +14,7 @@ export function loadActionNames(): Promise<ActionNameDatabase | null> {
   if (!pending) {
     pending = (async () => {
       try {
-        const result = await window.electronAPI.loadActionNames()
+        const result = await platform.loadActionNames()
         if (result.success && result.data) cache = result.data
         else console.warn('Action 中文名库加载失败，将使用 FFLogs 原始名称:', result.error)
       } catch (err) {

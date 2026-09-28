@@ -6,6 +6,7 @@ import { PropertyPanel } from './panels/PropertyPanel'
 import { UpdateDialog } from './components/UpdateDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { CactbotImportDialog } from './components/CactbotImportDialog'
+import { platform } from './platform'
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -117,7 +118,7 @@ export default function App() {
         })
         if (!ok) return
       }
-      const result = await window.electronAPI.openLogsFileDialog()
+      const result = await platform.openLogsFileDialog()
       if (!result.cancelled && result.filePath) {
         const ok = await logsLoadFile(result.filePath)
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -134,7 +135,7 @@ export default function App() {
         })
         if (!ok) return
       }
-      const result = await window.electronAPI.openPrFileDialog()
+      const result = await platform.openPrFileDialog()
       if (!result.cancelled && result.filePath) {
         const ok = await prLoadFile(result.filePath)
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -150,7 +151,7 @@ export default function App() {
       })
       if (!ok) return
     }
-    const result = await window.electronAPI.openFileDialog()
+    const result = await platform.openFileDialog()
     if (!result.cancelled && result.filePath) {
       const ok = await loadFile(result.filePath)
       if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -162,7 +163,7 @@ export default function App() {
       if (logsFilePath) {
         await logsSaveFile(logsFilePath)
       } else {
-        const result = await window.electronAPI.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
+        const result = await platform.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
         if (!result.cancelled && result.filePath) {
           const ok = await logsSaveFile(result.filePath)
           if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -174,7 +175,7 @@ export default function App() {
       if (prFilePath) {
         await prSaveFile(prFilePath)
       } else {
-        const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
+        const result = await platform.savePrFileDialog(prFileName || 'NewTimeline.json')
         if (!result.cancelled && result.filePath) {
           const ok = await prSaveFile(result.filePath)
           if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -185,7 +186,7 @@ export default function App() {
     if (filePath) {
       await saveFile(filePath)
     } else {
-      const result = await window.electronAPI.saveFileDialog(fileName || 'NewTriggerline.json')
+      const result = await platform.saveFileDialog(fileName || 'NewTriggerline.json')
       if (!result.cancelled && result.filePath) {
         const ok = await saveFile(result.filePath)
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -195,7 +196,7 @@ export default function App() {
 
   const handleSaveAs = useCallback(async () => {
     if (isLogs) {
-      const result = await window.electronAPI.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
+      const result = await platform.saveLogsFileDialog(logsFileName || 'NewLogsTimeline.json')
       if (!result.cancelled && result.filePath) {
         const ok = await logsSaveFile(result.filePath)
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -203,14 +204,14 @@ export default function App() {
       return
     }
     if (isPr) {
-      const result = await window.electronAPI.savePrFileDialog(prFileName || 'NewTimeline.json')
+      const result = await platform.savePrFileDialog(prFileName || 'NewTimeline.json')
       if (!result.cancelled && result.filePath) {
         const ok = await prSaveFile(result.filePath)
         if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
       }
       return
     }
-    const result = await window.electronAPI.saveFileDialog(fileName || 'NewTriggerline.json')
+    const result = await platform.saveFileDialog(fileName || 'NewTriggerline.json')
     if (!result.cancelled && result.filePath) {
       const ok = await saveFile(result.filePath)
       if (ok) document.title = `Timeline Editor - ${result.filePath.split(/[/\\]/).pop()}`
@@ -284,12 +285,13 @@ export default function App() {
   // Load spell lookup data and ACR types on startup
   useEffect(() => {
     loadSpellLookup()
-    loadAcrTypes()
+    // 网页版暂无 ACR 发现能力，跳过启动探测
+    if (platform.capabilities.acrDiscovery) loadAcrTypes()
   }, [loadSpellLookup, loadAcrTypes])
 
   // Load persisted UI settings (font size) on startup
   useEffect(() => {
-    window.electronAPI.getSettings()
+    platform.getSettings()
       .then(s => {
         if (typeof s.fontSizePercent === 'number' && Number.isFinite(s.fontSizePercent)) {
           setFontSizePercent(s.fontSizePercent)
@@ -312,9 +314,10 @@ export default function App() {
     return () => window.removeEventListener('focus', sync)
   }, [])
 
-  // Listen for auto-check update available notification
+  // Listen for auto-check update available notification（仅桌面版有自动更新）
   useEffect(() => {
-    const unsub = window.electronAPI.onUpdateAvailable(() => {
+    if (!platform.capabilities.updater) return
+    const unsub = platform.onUpdateAvailable(() => {
       setUpdateAvailable(true)
     })
     return unsub
@@ -324,7 +327,7 @@ export default function App() {
     setShowUpdate(true)
   }, [])
   useEffect(() => {
-    const unsub = window.electronAPI.onAcrTypesChanged(() => {
+    const unsub = platform.onAcrTypesChanged(() => {
       loadAcrTypes()
     })
     return unsub

@@ -5,6 +5,7 @@ import {
 } from '@shared/fflogsTypes'
 import type { FflogsCastEvent, FflogsFight, FflogsReportInfo } from '@shared/fflogsTypes'
 import { ModalShell } from '../components/ModalShell'
+import { platform } from '../platform'
 import { useLogsStore } from './logsStore'
 import { formatTimeMs } from './logsTypes'
 import type { ParsedFflogsData } from './fflogsImport'
@@ -80,7 +81,7 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
   // 下载进度按 requestId 分发
   useEffect(() => {
     try {
-      return window.electronAPI.onFflogsProgress(p => {
+      return platform.onFflogsProgress(p => {
         const update = { percent: p.percent, page: p.page, events: p.events }
         if (p.requestId === skillsReqRef.current) setSkillsProgress(update)
         else if (p.requestId === eventsReqRef.current) setEventsProgress(update)
@@ -94,8 +95,8 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
   useEffect(() => {
     return () => {
       try {
-        if (skillsReqRef.current) void window.electronAPI.cancelFflogsCasts(skillsReqRef.current)
-        if (eventsReqRef.current) void window.electronAPI.cancelFflogsCasts(eventsReqRef.current)
+        if (skillsReqRef.current) void platform.cancelFflogsCasts(skillsReqRef.current)
+        if (eventsReqRef.current) void platform.cancelFflogsCasts(eventsReqRef.current)
       } catch { /* IPC 未就绪 */ }
     }
   }, [])
@@ -106,7 +107,7 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
     setReportError('')
     setReport(null)
     try {
-      const result = await window.electronAPI.fetchFflogsReport(code, apiKey || undefined)
+      const result = await platform.fetchFflogsReport(code, apiKey || undefined)
       if (result.success) {
         setReport(result.data)
         const last = result.data.fights[result.data.fights.length - 1]
@@ -127,7 +128,7 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
     fight: FflogsFight,
     reportCode: string
   ): Promise<FflogsCastEvent[]> => {
-    const result = await window.electronAPI.fetchFflogsCasts({
+    const result = await platform.fetchFflogsCasts({
       requestId,
       code: reportCode,
       apiKey: apiKey || undefined,
@@ -189,8 +190,8 @@ export function FflogsImportDialog({ onClose }: FflogsImportDialogProps) {
 
   const cancelDownload = useCallback(() => {
     cancelledRef.current = true
-    if (skillsReqRef.current) void window.electronAPI.cancelFflogsCasts(skillsReqRef.current)
-    if (eventsReqRef.current) void window.electronAPI.cancelFflogsCasts(eventsReqRef.current)
+    if (skillsReqRef.current) void platform.cancelFflogsCasts(skillsReqRef.current)
+    if (eventsReqRef.current) void platform.cancelFflogsCasts(eventsReqRef.current)
   }, [])
 
   const doImport = useCallback(async () => {
