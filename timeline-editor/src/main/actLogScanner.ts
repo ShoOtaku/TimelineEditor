@@ -9,7 +9,9 @@ import {
   ActEncounterTracker,
   parseAddCombatantLine,
   parseChangeZoneLine,
-  parseCombatLine
+  parseCombatLine,
+  parseDeathLine,
+  parseInCombatLine
 } from './actLogParser'
 
 /** 窗口解析提前结束的余量：容忍日志行轻微乱序，超过 end+余量 才停止读取 */
@@ -67,7 +69,7 @@ async function forEachLine(
   return lines
 }
 
-/** 整文件扫描：战斗分段（按间隔）+ 玩家单位表（03 AddCombatant） */
+/** 整文件扫描：战斗分段（间隔/脱战/团灭）+ 玩家单位表（03 AddCombatant） */
 export async function scanActLogFile(
   path: string,
   gapMs: number,
@@ -80,8 +82,17 @@ export async function scanActLogFile(
   await forEachLine(path, fileSize, opts, line => {
     const c0 = line.charCodeAt(0)
     if (c0 === 0x32 /* '2' */) {
-      const combat = parseCombatLine(line)
-      if (combat) tracker.feedCombat(combat)
+      const c1 = line.charCodeAt(1)
+      if (c1 === 0x35 /* '5' */) {
+        const death = parseDeathLine(line)
+        if (death) tracker.feedDeath(death.id, death.ts)
+      } else if (c1 === 0x36 /* '6' */) {
+        const inCombat = parseInCombatLine(line)
+        if (inCombat) tracker.feedInCombat(inCombat.inCombat, inCombat.ts)
+      } else {
+        const combat = parseCombatLine(line)
+        if (combat) tracker.feedCombat(combat)
+      }
     } else if (c0 === 0x30 /* '0' */) {
       const c1 = line.charCodeAt(1)
       if (c1 === 0x31 /* '1' */) {

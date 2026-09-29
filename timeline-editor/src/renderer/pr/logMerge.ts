@@ -1,8 +1,10 @@
 // 从战斗日志生成 BOSS 时间轴（纯函数内核）。
-// 两条来源归一化为统一的 BossLogFight：ACT 窗口事件（开怪点判定同模拟器 findActPullTs）、
-// FFLogs 敌方 casts（战斗边界即开怪点；Pet 过滤；同键 1s 去重）。
-// mergeBossFights 把多场战斗的同一次施法按时间窗对齐成一个簇：同一场内同一时刻的
-// 不同技能保持分开，跨场 id 不同（同一技能被记录为多个 ID）则合并为一个锚点。
+// 两条来源归一化为统一的 BossLogFight：ACT 窗口事件（开怪点判定同模拟器 findActPullTs；
+// 同键 1s 去重，收敛 22 行 AOE 每目标一行的重复）、FFLogs 敌方 casts（战斗边界即开怪点；
+// Pet 过滤；同键 1s 去重）。
+// mergeBossFights 把多场战斗的同一次施法按时间窗对齐成一个簇：同一场内同一时刻的多个
+// 技能（如 AOE 同时命中多目标、BOSS 与小怪同时读条）合并为一个锚点，不同时刻的事件保持
+// 分开；跨场 id 不同（同一技能被记录为多个 ID）也合并为一个锚点。
 // buildTimelineFromClusters 按 cactbot 导入同款产物规则生成 PtlDocument 锚点骨架。
 
 import type { ActActorInfo, ActEncounter, ActLogEvent } from '@shared/actTypes'
@@ -65,7 +67,10 @@ export const DEFAULT_MERGE_OPTIONS: MergeOptions = {
   includeEffectAnchors: true
 }
 
-const FFLOGS_DEDUP_MS = 1000
+/** 同键去重窗口：22 行 AOE 每个目标一行、FFLogs 读条刷新重复，同 (来源, 技能, 类型) 窗口内只留首个 */
+const LOG_DEDUP_MS = 1000
+/** 同一场内允许并入同一簇的最大时差：同一时刻的多个技能（AOE 同时判定等）合并为一个锚点 */
+const SAME_FIGHT_SAME_TIME_MS = 100
 const PAIR_MIN_MS = -1000
 const PAIR_MAX_MS = 30_000
 const TIME_EPSILON = 0.0001
@@ -73,7 +78,7 @@ const TIME_STEP = 0.001
 
 // ---------- 来源归一化 ----------
 
-/** ACT 窗口事件 → BossLogFight（开怪点与模拟器同一判定；只含非宠物敌方来源事件） */
+/** ACT 窗口事件 → BossLogFight（开怪点与模拟器同一判定；只含非宠物敌方来源事件；同键 1s 去重） */
 export function buildActBossFight(
   key: string,
   label: string,
@@ -84,10 +89,15 @@ export function buildActBossFight(
   const petIds = collectPetIds(actors)
   const pullTs = findActPullTs(events, petIds, encounter.start)
   const sources = collectSimSources(events, actors)
+  const last = new Map<string, number>()
   const bossEvents: BossCastEvent[] = []
   for (const ev of events) {
     if (ev.ts < pullTs) continue
     if (!isActEnemyId(ev.sourceId) || petIds.has(ev.sourceId)) continue
+    const dedupKey = `${ev.sourceId}|${ev.abilityId}|${ev.type}`
+    const prev = last.get(dedupKey)
+    if (prev !== undefined && ev.ts - prev < LOG_DEDUP_MS) continue
+    last.set(dedupKey, ev.ts)
     bossEvents.push({
       tMs: ev.ts - pullTs,
       kind: ev.type === 'begincast' ? 'start' : 'effect',
@@ -130,7 +140,7 @@ export function buildFflogsBossFight(
     if (c.ability.guid === undefined) continue
     const dedupKey = `${c.sourceID}|${c.ability.guid}|${c.type}`
     const prev = last.get(dedupKey)
-    if (prev !== undefined && c.timestamp - prev < FFLOGS_DEDUP_MS) continue
+    if (prev !== undefined && c.timestamp - prev < LOG_DEDUP_MS) continue
     last.set(dedupKey, c.timestamp)
     bossEvents.push({
       tMs: c.timestamp - fight.start_time,
@@ -198,15 +208,18 @@ export function mergeBossFights(
 /**
  * 贪心限宽聚类：事件加入当前簇的条件是
  *  1. 距簇起点 ≤ windowMs（限宽，防止连续读条链式合并成一簇）；
- *  2. 簇内没有同一场战斗的成员——同一场内的每个事件都是一次独立施法，
- *     只有跨场事件才合并（跨场 id 不同即「同一技能多个 ID」场景）。
+ *  2. 若簇内已有同一场战斗的成员，则新成员必须与该场已入簇成员几乎同时
+ *     （≤0.1s）——同一场内同一时刻的多个技能（AOE 多目标、BOSS 与小怪同时
+ *     读条）视为同一次机制合并为一个锚点；不同时刻的每个事件都是独立施法。
+ *     跨场事件正常合并（跨场 id 不同即「同一技能多个 ID」场景）。
  */
 function clusterMembers(members: ClusterMember[], windowMs: number): MutableCluster[] {
   const clusters: MutableCluster[] = []
   let current: MutableCluster | null = null
   for (const member of members) {
+    const sameFight = current?.members.find(m => m.fightIndex === member.fightIndex)
     if (current && member.tMs - current.minTime <= windowMs &&
-      !current.members.some(m => m.fightIndex === member.fightIndex)) {
+      (!sameFight || member.tMs - sameFight.tMs <= SAME_FIGHT_SAME_TIME_MS)) {
       current.members.push(member)
     } else {
       current = { kind: member.event.kind, minTime: member.tMs, members: [member] }
@@ -304,20 +317,27 @@ export function buildTimelineFromClusters(
 
 function buildClusterAnchor(cluster: MergedCluster, time: number): PtlAnchor {
   const sync = createSync(cluster.kind === 'start' ? 'CastStart' : 'ActionEffect')
-  if (cluster.ids.length > 1) {
+  const multiId = cluster.ids.length > 1
+  if (multiId) {
     sync.Params.Regex = `^(?:${cluster.ids.join('|')})$`
   } else {
     sync.Params.ActionId = String(cluster.ids[0])
   }
-  const multiId = cluster.ids.length > 1
+  // 同一场贡献了多个成员 = 同一时刻的多个技能合并（与跨场多 ID 的 ⚠ 提示区分开）
+  const sameTimeMulti = cluster.perFight.some(pf => pf.timesMs.length > 1)
+  const warn = multiId && !sameTimeMulti
   const name = cluster.names[0] ?? String(cluster.ids[0])
   const anchor = buildAnchor(
-    `${multiId ? '⚠ ' : ''}${name} ${cluster.kind === 'start' ? '开始读条' : '判定'}`,
+    `${warn ? '⚠ ' : ''}${name} ${cluster.kind === 'start' ? '开始读条' : '判定'}`,
     time,
     sync
   )
   const parts = []
-  if (multiId) parts.push(`该技能在不同日志中记录了多个 ID: ${cluster.ids.join(' | ')}，请实测确认`)
+  if (multiId) {
+    parts.push(sameTimeMulti
+      ? `同一时刻的多个技能已合并为一个锚点（ID: ${cluster.ids.join(' | ')}），同步命中其中任意一个`
+      : `该技能在不同日志中记录了多个 ID: ${cluster.ids.join(' | ')}，请实测确认`)
+  }
   parts.push(`日志出现 ${cluster.fightCount} 场`)
   if (cluster.names.length > 1) parts.push(`名称差异: ${cluster.names.join(' / ')}`)
   anchor.Remark = parts.join('；')

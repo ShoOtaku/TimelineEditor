@@ -7,6 +7,8 @@
 //   20|时间|来源ID|来源名|技能ID(hex)|技能名|目标ID|目标名|读条秒|x|y|z|朝向|哈希  StartsCast
 //   21|时间|来源ID|来源名|技能ID(hex)|技能名|目标ID|目标名|效果...  Ability（单体）
 //   22|…同 21…                                                AOE Ability（每个目标一行）
+//   25|时间|单位ID(hex)|名字|...                             Death（单位死亡，团灭判定用）
+//   260|时间|inACTCombat|inGameCombat|...                    InCombat（OverlayPlugin，1=战斗中）
 
 /** 一次施法/开始读条事件（已归一化，时间戳为 epoch ms） */
 export interface ActLogEvent {
@@ -30,7 +32,14 @@ export interface ActLogFileInfo {
   mtime: number
 }
 
-/** 扫描出的一场战斗（按活动时间间隔分段，含敌方单位参与） */
+/** 战斗段的收尾方式（分段信息，供列表展示；不影响窗口解析） */
+export type ActEncounterEndReason =
+  | 'wipe'       // 团灭收尾（收尾前 15s 内有 ≥4 名不同玩家死亡）
+  | 'combatEnd'  // InCombat 行报告脱战（击杀/重置/正常脱战）
+  | 'gap'        // 相邻战斗事件间隔超时
+  | 'zone'       // 区域切换
+
+/** 扫描出的一场战斗（按活动时间间隔 + 脱战/团灭分段，含敌方单位参与） */
 export interface ActEncounter {
   id: number
   /** 首/尾战斗事件时间（epoch ms） */
@@ -40,6 +49,8 @@ export interface ActEncounter {
   zoneName?: string
   /** 段内战斗事件（20/21/22 行）总数 */
   events: number
+  /** 收尾方式（扫到文件末尾收尾时为 undefined） */
+  endReason?: ActEncounterEndReason
 }
 
 /** AddCombatant 收集到的单位信息（玩家用于职业显示；敌方单位的归属者用于识别宠物） */

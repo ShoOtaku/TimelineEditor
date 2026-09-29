@@ -54,6 +54,18 @@ describe('buildActBossFight', () => {
     expect(fight.durationMs).toBe(500_000)
     expect(fight.selectedSourceIds).toEqual([BOSS, ADD])
   })
+
+  it('同键 1s 去重：22 行 AOE 每个目标一行只留一个事件', () => {
+    const events = [
+      actEv(100, MT, BOSS),                     // 开怪
+      actEv(105, BOSS, MT, 1001),
+      actEv(105, BOSS, 0x10000002, 1001),       // AOE 第二目标 → 去重
+      actEv(105.5, BOSS, 0x10000003, 1001),     // 500ms 内重复 → 去重
+      actEv(107, BOSS, MT, 1001)                // 2s 后同技能 → 保留（另一次施法）
+    ]
+    const fight = buildActBossFight('k1', 'ACT 战斗', events, actors, encounter)
+    expect(fight.events.map(e => [e.tMs, e.id])).toEqual([[5000, 1001], [7000, 1001]])
+  })
 })
 
 const ffFight: FflogsFight = { id: 3, start_time: 1_000_000, end_time: 1_600_000, name: '测试BOSS', zoneName: '测试副本' }
@@ -129,12 +141,23 @@ describe('mergeBossFights', () => {
     expect(clusters[0].fightCount).toBe(3)
   })
 
-  it('同一场同一时刻的不同技能不合并（两次施法）', () => {
+  it('同一场不同时刻的技能不合并（两次施法）', () => {
     const f1 = makeFight([bossEv(10_000, 100), bossEv(10_500, 200)])
     const f2 = makeFight([bossEv(10_200, 100), bossEv(10_400, 200)])
     const clusters = mergeBossFights([f1, f2])
     expect(clusters).toHaveLength(2)
     expect(clusters.map(c => c.ids)).toEqual([[100], [200]])
+  })
+
+  it('同一场同一时刻的多个技能合并为一个簇（一个锚点）', () => {
+    const f1 = makeFight([bossEv(10_000, 100), bossEv(10_000, 200)])
+    const f2 = makeFight([bossEv(10_300, 100), bossEv(10_300, 200)])
+    const clusters = mergeBossFights([f1, f2])
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0].ids).toEqual([100, 200])
+    expect(clusters[0].fightCount).toBe(2)
+    expect(clusters[0].timeMs).toBe(10_150)
+    expect(clusters[0].perFight[0].timesMs).toHaveLength(2)
   })
 
   it('同一场连续读条不会被限宽窗口链式合并', () => {
@@ -208,6 +231,23 @@ describe('buildTimelineFromClusters', () => {
     expect(doc.Meta.Remark).toContain('日志A')
     expect(doc.Meta.Remark).toContain('模拟测试')
     expect(validatePtlDocument(doc).filter(i => i.level === 'error')).toEqual([])
+  })
+
+  it('同一时刻多技能合并的锚点：Regex 同步、不带 ⚠、备注说明合并', () => {
+    const doc = buildTimelineFromClusters([{
+      timeMs: 10_000, kind: 'start', ids: [100, 200], names: ['技能100', '技能200'],
+      fightCount: 2,
+      perFight: [
+        { fightIndex: 0, timesMs: [10_000, 10_000] },
+        { fightIndex: 1, timesMs: [10_300, 10_300] }
+      ],
+      paired: false
+    }], { name: '测试', sourceLabels: [] })
+    const anchor = doc.Anchors[1]
+    expect(anchor.Sync?.Params.Regex).toBe('^(?:100|200)$')
+    expect(anchor.Name).not.toContain('⚠')
+    expect(anchor.Remark).toContain('同一时刻')
+    expect(anchor.Remark).not.toContain('请实测确认')
   })
 
   it('空簇时只剩首尾锚点（仍是合法文档）', () => {

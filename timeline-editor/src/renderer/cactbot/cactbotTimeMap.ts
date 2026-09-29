@@ -39,7 +39,7 @@ export class CactbotTimeMap {
       const island = this.isPhaseIsland(line, label, previous, jumpLabels)
       let friendly = friendlyBase + line.time - originalBase
       if (line.lineType === 'label' && this.labels.has(label)) friendly = this.labels.get(label)!
-      else if (island) friendly = maxFriendly + PHASE_ISLAND_GAP
+      else if (island && friendly <= maxFriendly) friendly = maxFriendly + PHASE_ISLAND_GAP
 
       this.times.set(line, friendly)
       if (line.lineType === 'label') this.labels.set(label, friendly)

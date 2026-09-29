@@ -6,11 +6,13 @@ import {
   parseActTimestamp,
   parseAddCombatantLine,
   parseChangeZoneLine,
-  parseCombatLine
+  parseCombatLine,
+  parseDeathLine,
+  parseInCombatLine
 } from './actLogParser'
 import type { ParsedActLine } from './actLogParser'
 
-// 全部样本取自真实 ACT 日志（FFXIVLogs/Network_30300_20260916.log）
+// 全部样本取自真实 ACT 日志（FFXIVLogs/Network_30300_20260916.log、Network_30301_20260928.log）
 const TS = '2026-09-16T20:42:45.2260000+08:00'
 
 describe('parseActTimestamp', () => {
@@ -78,6 +80,31 @@ describe('parseCombatLine', () => {
     expect(parseCombatLine('03|2026-09-16T20:41:54.2560000+08:00|10019C03|小四斋|20|64|0000|461|拂晓之间|0|0|296882|296882|10000|10000|||40.97|32.07|1.20|-2.06|91399125552cf288')).toBeNull()
     expect(parseCombatLine('')).toBeNull()
     expect(parseCombatLine('21|bad')).toBeNull()
+  })
+})
+
+describe('parseDeathLine', () => {
+  it('解析 25 死亡行', () => {
+    const d = parseDeathLine('25|2026-09-28T21:09:26.2880000+08:00|10027D64|天天画圈圈|E0000000||9d4ab3220219ab10')
+    expect(d).not.toBeNull()
+    expect(d!.id).toBe(0x10027D64)
+    expect(d!.ts).toBe(parseActTimestamp('2026-09-28T21:09:26.2880000+08:00'))
+  })
+  it('忽略其他行', () => {
+    expect(parseDeathLine('21|x')).toBeNull()
+    expect(parseDeathLine('260|2026-09-28T21:09:02.0080000+08:00|1|0|1|0|c40285b0591a4be7')).toBeNull()
+  })
+})
+
+describe('parseInCombatLine', () => {
+  it('解析 260 行（inACTCombat 字段）', () => {
+    expect(parseInCombatLine('260|2026-09-28T21:09:02.0080000+08:00|1|0|1|0|c40285b0591a4be7'))
+      .toEqual({ ts: parseActTimestamp('2026-09-28T21:09:02.0080000+08:00'), inCombat: true })
+    expect(parseInCombatLine('260|2026-09-28T21:09:47.0540000+08:00|0|0|1|0|550644ebdb26d478')!.inCombat).toBe(false)
+  })
+  it('忽略其他行', () => {
+    expect(parseInCombatLine('25|x')).toBeNull()
+    expect(parseInCombatLine('261|2026-09-28T20:57:27.0900000+08:00|Add|1002DDC1|Name|咸鱼|')).toBeNull()
   })
 })
 
@@ -166,5 +193,79 @@ describe('ActEncounterTracker', () => {
     t.feedCombat(combat(0, PLAYER, PLAYER))
     t.feedCombat(combat(1_000, PLAYER, 0xE0000000))
     expect(t.finish(1)).toHaveLength(0)
+  })
+})
+
+describe('ActEncounterTracker 团灭/脱战切段', () => {
+  it('InCombat 1→0 切段并标记 combatEnd，重新开怪不受 gap 影响', () => {
+    const t = new ActEncounterTracker(60_000)
+    t.feedInCombat(true, 0)
+    t.feedCombat(combat(1_000, PLAYER, ENEMY))
+    t.feedCombat(combat(5_000, ENEMY, PLAYER))
+    t.feedInCombat(false, 10_000)
+    // 5s 后重新开怪（远小于 60s 分段间隔，没有 InCombat 时会揉在一起）
+    t.feedInCombat(true, 15_000)
+    t.feedCombat(combat(16_000, PLAYER, ENEMY))
+    const list = t.finish(1)
+    expect(list).toHaveLength(2)
+    expect(list[0]).toMatchObject({ start: 1_000, end: 5_000, endReason: 'combatEnd' })
+    expect(list[1]).toMatchObject({ start: 16_000, end: 16_000 })
+    expect(list[1].endReason).toBeUndefined()
+  })
+
+  it('脱战前有玩家死亡爆发时标记 wipe', () => {
+    const t = new ActEncounterTracker(60_000)
+    t.feedInCombat(true, 0)
+    t.feedCombat(combat(1_000, PLAYER, ENEMY))
+    ;[0x10000011, 0x10000012, 0x10000013, 0x10000014]
+      .forEach((id, i) => t.feedDeath(id, 8_000 + i * 500))
+    t.feedCombat(combat(9_000, ENEMY, PLAYER))
+    t.feedInCombat(false, 12_000)
+    const list = t.finish(1)
+    expect(list).toHaveLength(1)
+    expect(list[0].endReason).toBe('wipe')
+  })
+
+  it('无 InCombat 行时以玩家死亡爆发切段（兜底），团灭尾部事件被抑制', () => {
+    const t = new ActEncounterTracker(60_000)
+    t.feedCombat(combat(1_000, PLAYER, ENEMY))
+    t.feedDeath(0x10000011, 5_000)
+    t.feedDeath(0x10000012, 5_500)
+    t.feedDeath(0x10000013, 6_000)
+    t.feedCombat(combat(7_000, PLAYER, ENEMY))
+    // 3 人死亡不构成团灭，段继续；第 4 人死亡（窗口内 4 人）触发团灭关段
+    t.feedDeath(0x10000014, 8_000)
+    t.feedCombat(combat(9_000, ENEMY, PLAYER))    // 团灭尾部 20s 内 → 抑制，不另起新段
+    t.feedDeath(0x10000015, 9_500)                // 尾部死亡不重复触发
+    t.feedCombat(combat(40_000, PLAYER, ENEMY))   // 重新开怪
+    const list = t.finish(1)
+    expect(list).toHaveLength(2)
+    expect(list[0]).toMatchObject({ start: 1_000, end: 7_000, endReason: 'wipe' })
+    expect(list[1]).toMatchObject({ start: 40_000, end: 40_000 })
+  })
+
+  it('敌方死亡不计入团灭判定', () => {
+    const t = new ActEncounterTracker(60_000)
+    t.feedCombat(combat(1_000, PLAYER, ENEMY))
+    t.feedDeath(0x40000011, 5_000)
+    t.feedDeath(0x40000012, 5_500)
+    t.feedDeath(0x40000013, 6_000)
+    t.feedDeath(0x40000014, 6_500)
+    t.feedCombat(combat(7_000, PLAYER, ENEMY))
+    expect(t.finish(1)).toHaveLength(1)
+  })
+
+  it('日志中出现 InCombat 行后不再用死亡爆发兜底', () => {
+    const t = new ActEncounterTracker(60_000)
+    t.feedInCombat(true, 0)
+    t.feedCombat(combat(1_000, PLAYER, ENEMY))
+    // 4 人死亡但未脱战（队友被复活继续打），不应切段
+    ;[0x10000011, 0x10000012, 0x10000013, 0x10000014]
+      .forEach((id, i) => t.feedDeath(id, 5_000 + i * 500))
+    t.feedCombat(combat(7_000, PLAYER, ENEMY))
+    t.feedCombat(combat(9_000, PLAYER, ENEMY))
+    const list = t.finish(1)
+    expect(list).toHaveLength(1)
+    expect(list[0].end).toBe(9_000)
   })
 })

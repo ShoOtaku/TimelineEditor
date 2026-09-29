@@ -1,8 +1,9 @@
 // ACT 日志行解析（纯函数，不依赖 electron/fs，可单测）
 // 行格式见 shared/actTypes.ts 头部注释；参考 ccinos act_dps_show timeline.js 的
-// parseActLogFile（只取 21 行），此处补充 20（读条时长）与 22（AOE）行
+// parseActLogFile（只取 21 行），此处补充 20（读条时长）与 22（AOE）行，
+// 以及 25（死亡）与 260（InCombat）行用于团灭/脱战分段
 
-import type { ActActorInfo, ActEncounter, ActLogEvent } from '../shared/actTypes'
+import type { ActActorInfo, ActEncounter, ActEncounterEndReason, ActLogEvent } from '../shared/actTypes'
 import { isActEnemyId, isActPlayerId, parseActId } from '../shared/actTypes'
 
 export { isActEnemyId, isActPlayerId, parseActId }
@@ -17,7 +18,9 @@ export const LINE_TYPE = {
   AddCombatant: '03',
   StartsCast: '20',
   Ability: '21',
-  AoeAbility: '22'
+  AoeAbility: '22',
+  Death: '25',
+  InCombat: '260'
 } as const
 
 const COMBAT_LINE_TYPES = new Set<string>([LINE_TYPE.StartsCast, LINE_TYPE.Ability, LINE_TYPE.AoeAbility])
@@ -50,6 +53,27 @@ export function parseCombatLine(line: string): ParsedActLine | null {
     abilityName: f[5],
     targetId: Number.isNaN(targetId) ? 0 : targetId
   }
+}
+
+/** 25 Death 行 → 死亡单位 ID 与时间；非 25 行/字段缺失返回 null */
+export function parseDeathLine(line: string): { ts: number; id: number } | null {
+  if (!line.startsWith('25|')) return null
+  const f = line.split('|')
+  if (f.length < 4) return null
+  const ts = parseActTimestamp(f[1])
+  const id = parseActId(f[2])
+  if (Number.isNaN(ts) || Number.isNaN(id)) return null
+  return { ts, id }
+}
+
+/** 260 InCombat 行（OverlayPlugin）→ ACT 战斗状态与时间；非 260 行返回 null */
+export function parseInCombatLine(line: string): { ts: number; inCombat: boolean } | null {
+  if (!line.startsWith('260|')) return null
+  const f = line.split('|')
+  if (f.length < 4) return null
+  const ts = parseActTimestamp(f[1])
+  if (Number.isNaN(ts)) return null
+  return { ts, inCombat: f[2] === '1' }
 }
 
 /** 01 ChangeZone 行 → 区域名与时间 */
@@ -87,28 +111,44 @@ interface MutableEncounter {
   events: number
   /** 段内是否有敌方单位（0x40 段）作为来源或目标 */
   hasEnemy: boolean
+  endReason?: ActEncounterEndReason
 }
 
+/** 团灭判定：该窗口内死亡的不同玩家数达到阈值即视为团灭（8 人队全灭通常几秒内连续死亡） */
+const WIPE_DEATH_WINDOW_MS = 15_000
+const WIPE_DEATH_MIN_PLAYERS = 4
+/** 团灭关段后的尾部抑制：团灭瞬间 BOSS 常残留几个清场/消失动作，不另起新段 */
+const WIPE_TAIL_MS = 20_000
+
 /**
- * 战斗分段器：战斗事件（20/21/22）按时间连续累积，
- * 相邻事件间隔超过 gapMs 或发生区域切换时切断成新的一场战斗。
+ * 战斗分段器：战斗事件（20/21/22）按时间连续累积，以下情况切断成新的一场战斗：
+ *  1. 相邻事件间隔超过 gapMs；
+ *  2. 区域切换；
+ *  3. 260 InCombat 行报告 ACT 战斗状态 1→0（击杀/团灭/脱战重置）——最精确的开怪级切分；
+ *  4. 日志没有 InCombat 行时兜底：WIPE_DEATH_WINDOW_MS 内 ≥WIPE_DEATH_MIN_PLAYERS 名
+ *     不同玩家死亡视为团灭，立即切断（团灭后重新开怪不会被揉进上一场）。
  */
 export class ActEncounterTracker {
   private current: MutableEncounter | null = null
   private zoneName: string | undefined
   private readonly done: MutableEncounter[] = []
+  private prevInCombat: boolean | null = null
+  private sawInCombatLine = false
+  private recentPlayerDeaths: { ts: number; id: number }[] = []
+  private wipeClosedAt: number | null = null
 
   constructor(private readonly gapMs: number) {}
 
   /** 区域切换：结束当前段，后续段归入新区域 */
   changeZone(zoneName: string): void {
-    this.closeCurrent()
+    this.closeCurrent('zone')
     this.zoneName = zoneName
   }
 
   feedCombat(line: ParsedActLine): void {
+    if (this.inWipeTail(line.ts)) return
     const cur = this.current
-    if (cur && line.ts - cur.end > this.gapMs) this.closeCurrent()
+    if (cur && line.ts - cur.end > this.gapMs) this.closeCurrent('gap')
     const seg = this.current ?? (this.current = {
       start: line.ts,
       end: line.ts,
@@ -119,6 +159,30 @@ export class ActEncounterTracker {
     seg.end = line.ts
     seg.events += 1
     if (isActEnemyId(line.sourceId) || isActEnemyId(line.targetId)) seg.hasEnemy = true
+  }
+
+  /** 260 InCombat 行：ACT 战斗状态 1→0 结束当前段；0→1 解除团灭尾部抑制 */
+  feedInCombat(inCombat: boolean, ts: number): void {
+    this.sawInCombatLine = true
+    if (this.prevInCombat === true && !inCombat) {
+      const wipe = this.isWipe(ts)
+      if (this.closeCurrent(wipe ? 'wipe' : 'combatEnd') && wipe) this.wipeClosedAt = ts
+      this.recentPlayerDeaths = []
+    } else if (this.prevInCombat === false && inCombat) {
+      this.wipeClosedAt = null
+    }
+    this.prevInCombat = inCombat
+  }
+
+  /** 25 死亡行：记录玩家死亡；无 InCombat 信号时以死亡爆发作为团灭切段依据 */
+  feedDeath(id: number, ts: number): void {
+    if (!isActPlayerId(id)) return
+    if (this.inWipeTail(ts)) return
+    this.recentPlayerDeaths.push({ ts, id })
+    if (!this.sawInCombatLine && this.isWipe(ts)) {
+      if (this.closeCurrent('wipe')) this.wipeClosedAt = ts
+      this.recentPlayerDeaths = []
+    }
   }
 
   /**
@@ -134,14 +198,30 @@ export class ActEncounterTracker {
         start: seg.start,
         end: seg.end,
         zoneName: seg.zoneName,
-        events: seg.events
+        events: seg.events,
+        endReason: seg.endReason
       }))
   }
 
-  private closeCurrent(): void {
-    if (this.current) {
-      this.done.push(this.current)
-      this.current = null
-    }
+  /** ts 前团灭窗口内是否有足够多的不同玩家死亡（顺带清理过期死亡记录） */
+  private isWipe(ts: number): boolean {
+    this.recentPlayerDeaths = this.recentPlayerDeaths.filter(d => ts - d.ts <= WIPE_DEATH_WINDOW_MS)
+    return new Set(this.recentPlayerDeaths.map(d => d.id)).size >= WIPE_DEATH_MIN_PLAYERS
+  }
+
+  /** 团灭尾部窗口内的事件/死亡直接丢弃；窗口过后解除抑制 */
+  private inWipeTail(ts: number): boolean {
+    if (this.wipeClosedAt === null) return false
+    if (ts - this.wipeClosedAt <= WIPE_TAIL_MS) return true
+    this.wipeClosedAt = null
+    return false
+  }
+
+  private closeCurrent(reason?: ActEncounterEndReason): boolean {
+    if (!this.current) return false
+    this.current.endReason = reason
+    this.done.push(this.current)
+    this.current = null
+    return true
   }
 }

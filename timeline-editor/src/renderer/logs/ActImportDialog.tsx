@@ -442,7 +442,8 @@ export function EncounterStep(props: {
   return (
     <div className="space-y-3 max-w-2xl">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400 flex-shrink-0" title="相邻战斗事件超过该间隔即切分为两场战斗">
+        <span className="text-xs text-gray-400 flex-shrink-0"
+          title="相邻战斗事件超过该间隔即切分为两场战斗；团灭/脱战（InCombat）会自动切段，不受该间隔影响">
           分段间隔（秒）
         </span>
         <input type="text" inputMode="numeric" value={props.gapInput} disabled={props.scanning}
@@ -479,6 +480,11 @@ export function EncounterStep(props: {
                 <span className="block truncate text-[13px] text-gray-200">{enc.zoneName || '未知区域'}</span>
                 <span className="block text-[11px] text-gray-500">{enc.events} 个战斗事件</span>
               </span>
+              {enc.endReason === 'wipe' && (
+                <span className="flex-shrink-0 rounded border border-red-900/70 bg-red-950/40 px-1.5 py-0.5 text-[10px] text-red-300">
+                  团灭
+                </span>
+              )}
               <span className="text-[12px] font-mono text-gray-300 flex-shrink-0">
                 {formatTimeMs(enc.end - enc.start)}
               </span>
